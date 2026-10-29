@@ -1,0 +1,1020 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cluster Practice Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one-screen console. Terminal on the left, a tabbed side panel (Guide, Cluster, Cheat sheet) on the right; stacks on phones. Single dark console look by choice. */
+:root{
+  color-scheme: dark;
+  --bg:#0e1316; --panel:#141b1f; --panel2:#19232a; --line:#26343d;
+  --ink:#d6e0dc; --dim:#82939a; --accent:#f0b44c; --accent-ink:#1b1408;
+  --ok:#63c79c; --err:#ef7470; --warn:#e3925a; --info:#6db6e3; --dir:#7fb0ff;
+  --n-idle:#2c4a44; --n-mix:#3f6f8c; --n-alloc:#2b4f6b; --n-drain:#6b4a2a; --n-down:#5d2c2c;
+  --mono:"JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --sans:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;display:flex;flex-direction:column;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px;box-sizing:border-box;gap:10px}
+*{box-sizing:border-box}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;gap:1px;min-width:0}
+.brand b{font-family:var(--mono);font-weight:600;font-size:15px;letter-spacing:.02em}
+.brand span{color:var(--dim);font-size:12px}
+.sim{margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pill{font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--dim);white-space:nowrap}
+.pill.live{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+.pill.live::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-right:6px;vertical-align:1px}
+button{font:inherit;cursor:pointer;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:4px 10px}
+button:hover{border-color:var(--dim)}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.danger{color:var(--err);border-color:color-mix(in srgb,var(--err) 50%,transparent)}
+main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:10px}
+.termwrap{position:relative;min-width:0;min-height:0;display:flex;flex-direction:column;background:#0a0e10;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.tbar{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12px;color:var(--dim);background:var(--panel)}
+.tbar .host{color:var(--ink)}
+.term{flex:1;overflow-y:auto;overflow-x:auto;padding:10px 12px 14px;font-family:var(--mono);font-size:13px;line-height:1.45;cursor:text}
+.ln{white-space:pre;min-height:1.45em}
+.ln.wrap{white-space:pre-wrap;word-break:break-word}
+.err{color:var(--err)} .ok{color:var(--ok)} .tip{color:var(--accent)} .dimc{color:var(--dim)} .dirc{color:var(--dir);font-weight:600} .exe{color:var(--ok);font-weight:600} .info{color:var(--info)}
+.pr{color:var(--ok)} .pr .h{color:var(--accent)}
+.inline{display:flex;white-space:pre}
+.inline input{flex:1;min-width:40px;background:transparent;border:0;outline:0;color:var(--ink);font:inherit;padding:0;caret-color:var(--accent)}
+.editor{position:absolute;inset:0;display:flex;flex-direction:column;background:#0a0e10;font-family:var(--mono);font-size:13px;z-index:5}
+.ed-top{background:var(--ink);color:#0a0e10;padding:3px 10px;display:flex;justify-content:space-between;gap:10px}
+.editor textarea{flex:1;resize:none;background:transparent;color:var(--ink);border:0;outline:0;font:inherit;line-height:1.45;padding:10px 12px;white-space:pre;overflow:auto}
+.ed-msg{padding:3px 10px;min-height:1.6em;color:var(--accent)}
+.ed-bar{display:flex;gap:6px 16px;flex-wrap:wrap;padding:6px 10px;border-top:1px solid var(--line);background:var(--panel)}
+.ed-bar button{font-family:var(--mono);font-size:12px;padding:2px 8px}
+.ed-bar kbd{background:var(--ink);color:#0a0e10;padding:0 3px;margin-right:4px;border-radius:2px}
+aside{min-width:0;min-height:0;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tabs button{flex:1;border:0;border-radius:0;background:transparent;padding:9px 6px;color:var(--dim);font-weight:500;border-bottom:2px solid transparent}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.pane{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:14px}
+h2{font-size:16px;margin:0;text-wrap:balance;font-weight:600}
+h3{font-size:11px;margin:0;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);font-weight:600}
+p{margin:0;line-height:1.5}
+.lessons{display:flex;gap:4px;flex-wrap:wrap}
+.lessons button{width:28px;height:28px;padding:0;font-family:var(--mono);font-size:12px}
+.lessons button.done{background:color-mix(in srgb,var(--ok) 22%,var(--panel2));border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+.lessons button.cur{border-color:var(--accent);color:var(--accent)}
+ol.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;counter-reset:s}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;align-items:start;color:var(--dim);line-height:1.45}
+ol.steps li::before{content:counter(s);font-family:var(--mono);font-size:11px;width:20px;height:20px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;margin-top:1px}
+ol.steps li.done::before{content:"✓";color:var(--ok);border-color:color-mix(in srgb,var(--ok) 50%,transparent)}
+ol.steps li.cur{color:var(--ink)}
+ol.steps li.cur::before{border-color:var(--accent);color:var(--accent)}
+.chip{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-family:var(--mono);font-size:12.5px;background:#0a0e10;border:1px solid var(--line);border-radius:5px;padding:4px 8px;color:var(--accent);max-width:100%;overflow-x:auto;white-space:nowrap}
+.chip:hover{border-color:var(--accent)}
+.why{font-size:12.5px;color:var(--dim);margin-top:4px}
+.track{font-family:var(--mono);font-size:12px;border:1px dashed var(--line);border-radius:6px;padding:6px 8px;color:var(--dim)}
+.navrow{display:flex;gap:8px;justify-content:space-between}
+.done-card{border:1px solid color-mix(in srgb,var(--ok) 45%,transparent);border-radius:8px;padding:10px;background:color-mix(in srgb,var(--ok) 8%,transparent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(15px,1fr));gap:3px}
+.node{aspect-ratio:1;border-radius:2px;background:var(--n-idle);max-width:100%}
+.node.mix{background:linear-gradient(135deg,var(--n-mix) 50%,var(--n-idle) 50%)}
+.node.alloc{background:var(--n-alloc)} .node.drain{background:var(--n-drain)} .node.down{background:var(--n-down)}
+.node.mine{outline:2px solid var(--accent);outline-offset:-1px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:var(--dim)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.part{display:flex;flex-direction:column;gap:6px}
+.part .hd{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px}
+.part .hd span{color:var(--dim)}
+table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
+th{text-align:left;color:var(--dim);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:4px 6px;border-bottom:1px solid var(--line)}
+td{padding:5px 6px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12px}
+.tblwrap{overflow-x:auto}
+.st{font-size:11px;padding:1px 6px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.st.PENDING{color:var(--warn)} .st.RUNNING{color:var(--info)} .st.COMPLETED{color:var(--ok)} .st.FAILED,.st.TIMEOUT{color:var(--err)} .st.CANCELLED{color:var(--dim)}
+.empty{color:var(--dim);font-size:13px}
+.cheat{display:flex;flex-direction:column;gap:6px}
+.cheat div{display:grid;grid-template-columns:minmax(0,1fr);gap:1px;padding:5px 0;border-bottom:1px solid var(--line)}
+.cheat code{font-family:var(--mono);font-size:12.5px;color:var(--accent);cursor:pointer;overflow-x:auto;white-space:nowrap}
+.cheat span{font-size:12.5px;color:var(--dim)}
+.note{font-size:12.5px;color:var(--dim);line-height:1.5}
+@media (max-width:860px){
+  body{height:auto;min-height:100%}
+  html{height:auto}
+  main{grid-template-columns:minmax(0,1fr)}
+  .termwrap{height:62vh}
+  aside{max-height:none}
+}
+@media (prefers-reduced-motion:no-preference){ ol.steps li.done::before{transition:all .3s} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><b>practice-cluster</b><span>A safe, simulated supercomputer for learning Slurm. Nothing here touches real hardware.</span></div>
+  <div class="sim">
+    <span class="pill live" id="clock">--</span>
+    <span class="pill">1 second = 1 minute of cluster time</span>
+    <button id="resetBtn" class="danger" type="button">Reset practice</button>
+  </div>
+</header>
+
+<main>
+  <section class="termwrap" aria-label="Terminal">
+    <div class="tbar"><span>ssh</span><span class="host" id="tbHost">mudy@login01</span><span id="tbMods" style="margin-left:auto"></span></div>
+    <div class="term" id="term"><div id="out"></div><div class="inline"><span id="prompt"></span><input id="cmd" aria-label="Command" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></div></div>
+    <div class="editor" id="editor" hidden>
+      <div class="ed-top"><span>GNU nano 6.4</span><span id="edName"></span><span id="edMod"></span></div>
+      <textarea id="edText" spellcheck="false" aria-label="File editor"></textarea>
+      <div class="ed-msg" id="edMsg"></div>
+      <div class="ed-bar" id="edBar">
+        <button type="button" id="edSave"><kbd>^S</kbd>Save</button>
+        <button type="button" id="edExit"><kbd>^X</kbd>Exit</button>
+      </div>
+    </div>
+  </section>
+  <aside>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-guide" aria-selected="true" type="button">Guide</button>
+      <button role="tab" id="tab-cluster" aria-selected="false" type="button">Cluster</button>
+      <button role="tab" id="tab-cheat" aria-selected="false" type="button">Cheat sheet</button>
+    </div>
+    <div class="pane" id="pane-guide"></div>
+    <div class="pane" id="pane-cluster" hidden></div>
+    <div class="pane" id="pane-cheat" hidden></div>
+  </aside>
+</main>
+
+<script>
+(function(){
+"use strict";
+const USER='mudy', HOME='/home/mudy', LOGIN='login01', SPEED=60, UID=5012;
+const $=s=>document.querySelector(s);
+const outEl=$('#out'), termEl=$('#term'), cmdEl=$('#cmd'), promptEl=$('#prompt');
+
+/* ---------- time ---------- */
+let simBase=Date.now(), realBase=Date.now();
+const simMs=()=>simBase+(Date.now()-realBase)*SPEED;
+const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MONS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const p2=n=>String(n).padStart(2,'0');
+function dateStr(ms){const d=new Date(ms);return `${DAYS[d.getDay()]} ${MONS[d.getMonth()]} ${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())} +03 ${d.getFullYear()}`}
+function isoStr(ms){if(!ms)return 'Unknown';const d=new Date(ms);return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`}
+function lsDate(ms){const d=new Date(ms);return `${MONS[d.getMonth()]} ${String(d.getDate()).padStart(2,' ')} ${p2(d.getHours())}:${p2(d.getMinutes())}`}
+function fmtElapsed(min){let s=Math.max(0,Math.floor(min*60));const d=Math.floor(s/86400);s%=86400;const h=Math.floor(s/3600);s%=3600;const m=Math.floor(s/60);s%=60;
+  if(d)return `${d}-${p2(h)}:${p2(m)}:${p2(s)}`; if(h)return `${h}:${p2(m)}:${p2(s)}`; return `${m}:${p2(s)}`}
+function fmtHMS(min){let s=Math.max(0,Math.round(min*60));const d=Math.floor(s/86400);s%=86400;const h=Math.floor(s/3600);s%=3600;const m=Math.floor(s/60);s%=60;
+  return (d?d+'-':'')+`${p2(h)}:${p2(m)}:${p2(s)}`}
+function parseTime(v){ if(v==null||v==='')return null; v=String(v).trim(); let d=0,rest=v;
+  if(v.includes('-')){const [a,b]=v.split('-');d=+a;rest=b||'0'; const q=rest.split(':').map(Number); if(q.some(isNaN)||isNaN(d))return NaN; const [h=0,m=0,s=0]=q; return d*1440+h*60+m+s/60;}
+  const q=rest.split(':').map(Number); if(q.some(isNaN))return NaN;
+  if(q.length===1)return q[0]; if(q.length===2)return q[0]+q[1]/60; if(q.length===3)return q[0]*60+q[1]+q[2]/60; return NaN}
+function parseMem(v){ if(v==null)return null; const m=String(v).trim().match(/^(\d+(?:\.\d+)?)([KMGT]?)B?$/i); if(!m)return NaN; const n=+m[1], u=(m[2]||'M').toUpperCase(); return u==='K'?n/1024:u==='M'?n:u==='G'?n*1024:n*1024*1024}
+function fmtMem(mb){return mb>=1024?(mb%1024===0?mb/1024+'G':(mb/1024).toFixed(1)+'G'):Math.round(mb)+'M'}
+
+/* ---------- random (seeded) ---------- */
+let seed=20261021; function rnd(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
+const pick=a=>a[Math.floor(rnd()*a.length)];
+
+/* ---------- file system ---------- */
+const D=c=>({type:'d',c:c||{},m:Date.now()}), F=t=>({type:'f',t,m:Date.now()});
+const README=`Welcome to the practice cluster
+================================
+
+This is a simulated Slurm cluster. Everything you do here is safe:
+nothing runs on real hardware and you cannot break anything.
+Use "Reset practice" (top right) to start over.
+
+Two kinds of machines
+  login01      where you land after ssh. Edit files, submit jobs.
+               Do NOT run heavy programs here.
+  compute nodes cn001-cn050, gpu01-gpu04, hm01-hm02.
+               Your jobs run here, sent by the Slurm scheduler.
+
+Folders
+  ~/jobs       example job scripts (hello.sh, foldseek_search.sh, ...)
+  ~/data       query structures for the Foldseek examples
+  ~/results    where the example jobs write their output
+  /scratch/mudy   large temporary space (purged after 30 days)
+  /datasets/esm_atlas   shared, read-only copy of a Foldseek database
+
+The daily loop
+  1. write or edit a job script      nano myjob.sh
+  2. submit it                       sbatch myjob.sh
+  3. watch it                        squeue --me
+  4. read the output                 cat slurm-<jobid>.out
+  5. check what it used              seff <jobid>
+`;
+const HELLO=`#!/bin/bash
+#SBATCH --job-name=hello
+#SBATCH --partition=compute
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=1G
+#SBATCH --time=00:10:00
+
+# A tiny first job. It prints where it ran, then waits 5 minutes.
+echo "Hello from $(hostname)"
+echo "Job ID: $SLURM_JOB_ID"
+echo "Started: $(date)"
+sleep 300
+echo "Finished: $(date)"
+`;
+const FOLDSEEK=`#!/bin/bash
+#SBATCH --job-name=fs_cdd
+#SBATCH --partition=compute
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=32G
+#SBATCH --time=02:00:00
+#SBATCH --output=slurm-%j.out
+
+# Search a bacterial cytidine deaminase (gemcitabine-inactivating)
+# against the ESM Metagenomic Atlas Foldseek database.
+module purge
+module load foldseek
+
+DB=/datasets/esm_atlas/foldseek/esm_atlas_hq
+QUERY=$HOME/data/cdd_mhyorhinis.pdb
+OUT=$HOME/results
+
+mkdir -p $OUT
+echo "Job $SLURM_JOB_ID started on $(hostname) at $(date)"
+echo "Using $SLURM_CPUS_PER_TASK CPU cores"
+
+foldseek easy-search $QUERY $DB $OUT/cdd_hits.m8 $TMPDIR --threads $SLURM_CPUS_PER_TASK -e 0.001
+
+echo "Finished at $(date)"
+`;
+const BROKEN=`#!/bin/bash
+#SBATCH --job-name=fs_gus
+#SBATCH --partition=compute
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=16G
+#SBATCH --time=01:00:00
+
+# Search a gut beta-glucuronidase (irinotecan toxicity).
+# This script has a mistake. Run it, read the error, then fix it.
+module purge
+
+echo "Starting on $(hostname)"
+foldseek easy-search $HOME/data/gus_ecoli.pdb /datasets/esm_atlas/foldseek/esm_atlas_hq $HOME/results/gus_hits.m8 $TMPDIR --threads 8
+`;
+const LONG=`#!/bin/bash
+#SBATCH --job-name=long_run
+#SBATCH --partition=compute
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=8G
+#SBATCH --time=02:00:00
+
+# Pretends to work for 90 minutes. Good for practising scancel.
+echo "Long job started on $(hostname)"
+sleep 5400
+echo "Long job finished"
+`;
+const GPU=`#!/bin/bash
+#SBATCH --job-name=gpu_test
+#SBATCH --partition=gpu
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=32G
+#SBATCH --time=00:20:00
+
+# Ask for one GPU and show it.
+module purge
+module load cuda
+echo "Running on $(hostname)"
+nvidia-smi
+sleep 120
+`;
+const PDB=(name,res)=>`HEADER    ${name}\nREMARK   1 Practice copy. Coordinates trimmed for the demo.\n`+
+  res.map((r,i)=>`ATOM  ${String(i*4+1).padStart(5)}  CA  ${r} A${String(i+1).padStart(4)}    ${(10+i*1.3).toFixed(3).padStart(8)}${(5-i*.7).toFixed(3).padStart(8)}${(2+i*.4).toFixed(3).padStart(8)}  1.00 85.20           C`).join('\n')+'\n...\nEND\n';
+function makeFS(){
+  return D({
+    home:D({mudy:D({
+      'README.txt':F(README),
+      jobs:D({'hello.sh':F(HELLO),'foldseek_search.sh':F(FOLDSEEK),'broken.sh':F(BROKEN),'long_job.sh':F(LONG),'gpu_test.sh':F(GPU)}),
+      data:D({'cdd_mhyorhinis.pdb':F(PDB('CYTIDINE DEAMINASE, MYCOPLASMA HYORHINIS',['MET','LYS','ILE','GLU','CYS','HIS','ALA','GLU','ASN'])),
+              'gus_ecoli.pdb':F(PDB('BETA-GLUCURONIDASE, ESCHERICHIA COLI',['MET','LEU','ARG','PRO','VAL','GLU','THR','PRO','TYR'])),
+              'queries.txt':F('cdd_mhyorhinis.pdb  cytidine deaminase   gemcitabine\ngus_ecoli.pdb       beta-glucuronidase   irinotecan (SN-38G)\n')}),
+      results:D()
+    })}),
+    scratch:D({mudy:D()}),
+    datasets:D({esm_atlas:D({foldseek:D({
+      'esm_atlas_hq':F('[binary Foldseek database, 36,912,557 high-quality predicted structures]\n'),
+      'esm_atlas_hq.index':F('[binary index]\n'),
+      'README':F('ESM Metagenomic Atlas, high-quality subset (pLDDT > 70), Foldseek format.\nShared read-only copy. Point your jobs at:\n  /datasets/esm_atlas/foldseek/esm_atlas_hq\n')})})}),
+    tmp:D()
+  });
+}
+let fs=makeFS();
+function resolve(p,cwd){ if(p==null||p==='')return cwd; if(p==='~'||p.startsWith('~/'))p=HOME+p.slice(1); if(!p.startsWith('/'))p=cwd+'/'+p;
+  const parts=[]; for(const s of p.split('/')){ if(!s||s==='.')continue; if(s==='..')parts.pop(); else parts.push(s);} return '/'+parts.join('/')}
+function getN(path){ let n=fs; if(path==='/')return n; for(const s of path.slice(1).split('/')){ if(!n||n.type!=='d')return null; n=n.c[s]; } return n||null}
+function parentOf(path){const i=path.lastIndexOf('/');return [i<=0?'/':path.slice(0,i),path.slice(i+1)]}
+function writeFile(path,text,append){ const [dp,name]=parentOf(path); const d=getN(dp); if(!d||d.type!=='d'||!name)return false;
+  const ex=d.c[name]; if(ex&&ex.type==='d')return false; if(ex&&append){ex.t+=text;ex.m=simMs()} else d.c[name]={type:'f',t:text,m:simMs()}; return true}
+function mkdirp(path){ let n=fs; for(const s of path.split('/').filter(Boolean)){ if(!n.c[s])n.c[s]=D(); n=n.c[s]; if(n.type!=='d')return false;} return true}
+function readOnly(path){return path.startsWith('/datasets')}
+function canWrite(path){return path.startsWith(HOME)||path.startsWith('/scratch/mudy')||path.startsWith('/tmp')}
+
+/* ---------- modules ---------- */
+const MODS={'foldseek':['9.427df8a','8.ef4e960'],'mmseqs2':['15-6f452'],'python':['3.11.7','3.9.18'],'anaconda3':['2024.02'],'gcc':['12.2.0','11.3.0'],
+  'openmpi':['4.1.5'],'cuda':['12.2','11.8'],'blast+':['2.15.0'],'hmmer':['3.4'],'R':['4.3.2'],'autodock-vina':['1.2.5'],'pymol':['2.5.0']};
+function modResolve(name){ const [b,v]=name.split('/'); if(!MODS[b])return null; if(v&&!MODS[b].includes(v))return null; return b+'/'+(v||MODS[b][0])}
+function hasMod(list,base){return list.some(m=>m.split('/')[0]===base)}
+const NEEDS={foldseek:['foldseek'],mmseqs:['mmseqs2'],python:['python','anaconda3'],python3:['python','anaconda3'],blastp:['blast+'],hmmsearch:['hmmer'],Rscript:['R'],vina:['autodock-vina']};
+const HEAVY=['foldseek','mmseqs','python','python3','blastp','hmmsearch','Rscript','vina','nvidia-smi'];
+
+/* ---------- cluster ---------- */
+const PARTS=[
+  {name:'compute',def:true,max:3*1440,deflim:60,cpus:40,mem:192*1024,gpus:0,prefix:'cn',from:1,to:48,w:3},
+  {name:'gpu',max:2*1440,deflim:60,cpus:32,mem:384*1024,gpus:4,prefix:'gpu',from:1,to:4,w:2},
+  {name:'highmem',max:3*1440,deflim:60,cpus:64,mem:1536*1024,gpus:0,prefix:'hm',from:1,to:2,w:2},
+  {name:'debug',max:30,deflim:30,cpus:40,mem:192*1024,gpus:0,prefix:'cn',from:49,to:50,w:3}];
+const partOf=n=>PARTS.find(p=>p.name===n);
+let nodes=[];
+function buildNodes(){ nodes=[]; for(const p of PARTS) for(let i=p.from;i<=p.to;i++){
+  const name=p.prefix+String(i).padStart(p.w,'0'); nodes.push({name,part:p.name,cpus:p.cpus,mem:p.mem,gpus:p.gpus,used:0,gused:0,admin:name==='cn017'?'drain':name==='cn033'?'down':null,jobs:[]});}}
+const nodeByName=n=>nodes.find(x=>x.name===n);
+function nodeState(n){ if(n.admin)return n.admin; if(n.used===0&&n.gused===0)return 'idle'; if(n.used>=n.cpus||(n.gpus&&n.gused>=n.gpus))return 'alloc'; return 'mix'}
+function hostlist(names){ if(!names.length)return ''; const g={}; for(const nm of names){const m=nm.match(/^([a-z]+)(\d+)$/); if(!m){(g[nm]=g[nm]||[]);continue} (g[m[1]]=g[m[1]]||[]).push(m[2]);}
+  const outp=[]; for(const pre in g){ const nums=g[pre].sort((a,b)=>+a-+b); if(!nums.length){outp.push(pre);continue} if(nums.length===1){outp.push(pre+nums[0]);continue}
+    const rs=[]; let s=nums[0],e=nums[0]; for(let i=1;i<=nums.length;i++){ if(i<nums.length&&+nums[i]===+e+1){e=nums[i];continue} rs.push(s===e?s:s+'-'+e); if(i<nums.length){s=e=nums[i]} }
+    outp.push(pre+'['+rs.join(',')+']'); } return outp.join(',')}
+
+let nextId=4815162, userJobs=[], bgRun=[], bgPend=[];
+const OTHERS=['aalharbi','fqureshi','salzahrani','mkhan','rahmed','nalotaibi','yhassan','jsingh','hbakr','lzhang'];
+const JNAMES=['md_prod','vasp_rlx','gromacs','rnaseq','wrf_run','alphafld','cp2k_opt','qiime2','lammps','bert_ft','orca_dft','star_map','blast_nt','nfcore','cryo_ref','gatk_hc'];
+function bgStart(nodeList,cpn,gpn,part,ageMin){ const j={id:nextId++,name:pick(JNAMES),user:pick(OTHERS),part,nodes:nodeList.length,cpn,gpn,nodelist:nodeList.map(n=>n.name),state:'RUNNING',start:simMs()-ageMin*60000,limit:pick([720,1440,2880,4320])};
+  nodeList.forEach(n=>{n.used+=cpn;n.gused+=gpn;n.jobs.push(j.id)}); bgRun.push(j); return j}
+function initBg(){
+  buildNodes(); bgRun=[]; bgPend=[];
+  const comp=nodes.filter(n=>n.part==='compute'&&!n.admin);
+  // fully allocated multi-node and single-node jobs
+  let i=0; const full=comp.slice(0,30); while(i<full.length){ const k=Math.min(full.length-i,pick([1,1,2,2,4])); bgStart(full.slice(i,i+k),40,0,'compute',rnd()*1500); i+=k; }
+  comp.slice(30,38).forEach(n=>bgStart([n],pick([8,12,16,20,24]),0,'compute',rnd()*900));
+  const g=nodes.filter(n=>n.part==='gpu'); bgStart([g[0]],32,4,'gpu',rnd()*2000); bgStart([g[1]],16,2,'gpu',rnd()*600); bgStart([g[1]],16,2,'gpu',rnd()*600); bgStart([g[2]],16,2,'gpu',rnd()*300);
+  bgStart([nodes.find(n=>n.name==='hm01')],32,0,'highmem',rnd()*1200);
+  const reasons=[['gpu','(Resources)',4],['gpu','(Priority)',2],['compute','(Priority)',2],['compute','(QOSMaxJobsPerUserLimit)',1],['highmem','(Resources)',1],['compute','(Dependency)',1]];
+  for(const [p,r,nn] of reasons) bgPend.push({id:nextId++,name:pick(JNAMES),user:pick(OTHERS),part:p,nodes:p==='gpu'?1:nn,state:'PENDING',reason:r});
+}
+function bgChurn(){ if(!bgRun.length)return; const j=bgRun[Math.floor(rnd()*bgRun.length)]; const ns=j.nodelist.map(nodeByName);
+  ns.forEach(n=>{n.used-=j.cpn;n.gused-=j.gpn;n.jobs=n.jobs.filter(x=>x!==j.id)}); bgRun=bgRun.filter(x=>x!==j);
+  if(rnd()<0.85) bgStart(ns,j.cpn,j.gpn,j.part,0);
+  if(rnd()<0.3&&bgPend.length){ const pj=bgPend.shift(); pj.id=nextId++; bgPend.push(pj); }
+}
+
+/* ---------- shell state ---------- */
+const shell={cwd:HOME,host:LOGIN,modules:[],vars:{},ijob:null,history:[],hidx:0};
+
+/* ---------- output ---------- */
+let sink=null;
+function print(x='',cls=''){ if(sink){ sink.push(Array.isArray(x)?x.map(s=>s[0]).join(''):String(x)); return }
+  const div=document.createElement('div'); div.className='ln '+cls;
+  if(Array.isArray(x)) x.forEach(([t,c])=>{const s=document.createElement('span'); if(c)s.className=c; s.textContent=t; div.appendChild(s)}); else div.textContent=x;
+  outEl.appendChild(div); }
+function scrollEnd(){ termEl.scrollTop=termEl.scrollHeight }
+function promptParts(){ const dir=shell.cwd===HOME?'~':shell.cwd==='/'?'/':shell.cwd.split('/').pop(); return [[`[${USER}@`,'pr'],[shell.host,'pr h'],[` ${dir}]$ `,'pr']] }
+function renderPrompt(){ promptEl.innerHTML=''; promptParts().forEach(([t,c])=>{const s=document.createElement('span');s.className=c;s.textContent=t;promptEl.appendChild(s)});
+  $('#tbHost').textContent=USER+'@'+shell.host; $('#tbMods').textContent=shell.modules.length?'modules: '+shell.modules.join(' '):''; }
+
+/* ---------- tokenizer ---------- */
+function expand(str,env,dateMs){
+  // leave single-quoted parts alone
+  return str.split(/('[^']*')/).map(seg=>{ if(seg.startsWith("'"))return seg;
+    return seg.replace(/\$\((hostname|date|whoami|nproc|pwd)\)/g,(m,c)=>c==='hostname'?env.HOSTNAME:c==='date'?dateStr(dateMs||simMs()):c==='whoami'?USER:c==='nproc'?String(env.SLURM_CPUS_PER_TASK||(env.HOSTNAME===LOGIN?4:1)):env.PWD)
+      .replace(/\$\{(\w+)\}|\$(\w+)/g,(m,a,b)=>{const k=a||b; return env[k]!=null?String(env[k]):''}); }).join('');
+}
+function tokenize(str){ const toks=[]; let cur='',q=null,has=false;
+  const push=()=>{ if(has||cur){toks.push({w:cur})} cur='';has=false };
+  for(let i=0;i<str.length;i++){ const c=str[i];
+    if(q){ if(c===q)q=null; else cur+=c; continue }
+    if(c==='"'||c==="'"){q=c;has=true;continue}
+    if(c===' '||c==='\t'){push();continue}
+    if(c==='|'||c===';'){ push(); if(c==='|'&&str[i+1]==='|'){toks.push({op:'||'});i++} else toks.push({op:c}); continue }
+    if(c==='&'&&str[i+1]==='&'){push();toks.push({op:'&&'});i++;continue}
+    if(c==='>'){ push(); if(str[i+1]==='>'){toks.push({op:'>>'});i++} else toks.push({op:'>'}); continue }
+    cur+=c; }
+  push(); return toks }
+
+/* ---------- command runner ---------- */
+function shellEnv(){ const env={USER,HOME,PWD:shell.cwd,HOSTNAME:shell.host,SHELL:'/bin/bash',...shell.vars};
+  if(shell.ijob){const j=shell.ijob; Object.assign(env,{SLURM_JOB_ID:j.id,SLURM_CPUS_PER_TASK:j.cpt,SLURM_NTASKS:j.ntasks,SLURM_JOB_NODELIST:hostlist(j.nodelist),TMPDIR:'/tmp/'+j.id})}
+  return env }
+function execLine(line){
+  print([...promptParts(),[line,'']]);
+  if(line.trim()){ shell.history.push(line); if(shell.history.length>300)shell.history.shift(); }
+  shell.hidx=shell.history.length;
+  if(!line.trim()){ return }
+  const toks=tokenize(expand(line,shellEnv()));
+  // split into command lists by ; && ||
+  let lists=[[]], ops=[]; for(const t of toks){ if(t.op===';'||t.op==='&&'||t.op==='||'){ops.push(t.op);lists.push([])} else lists[lists.length-1].push(t) }
+  let last=0;
+  lists.forEach((lt,i)=>{ if(i>0){ if(ops[i-1]==='&&'&&last!==0)return; if(ops[i-1]==='||'&&last===0)return; } if(lt.length) last=runPipeline(lt) });
+  save();
+}
+function runPipeline(toks){
+  let redir=null; const ri=toks.findIndex(t=>t.op==='>'||t.op==='>>');
+  if(ri>=0){ const target=toks[ri+1]; if(!target||target.op){print('bash: syntax error near unexpected token `newline\'','err');return 2} redir={append:toks[ri].op==='>>',path:resolve(target.w,shell.cwd)}; toks=toks.slice(0,ri).concat(toks.slice(ri+2)) }
+  const segs=[[]]; for(const t of toks){ if(t.op==='|')segs.push([]); else if(t.w!=null)segs[segs.length-1].push(t.w) }
+  let stdin=null, code=0;
+  const capture=segs.length>1||redir;
+  segs.forEach((argv,idx)=>{ if(!argv.length)return; const isLast=idx===segs.length-1;
+    const prev=sink; if(capture&&!(isLast&&!redir))sink=[]; else if(capture&&isLast&&redir) sink=[];
+    code=runCmd(argv,stdin);
+    if(capture){ if(isLast&&!redir){} else { stdin=sink.join('\n'); } }
+    sink=prev; });
+  if(redir){ if(!canWrite(redir.path)){print(`bash: ${redir.path}: Permission denied`,'err');return 1}
+    if(!writeFile(redir.path,(stdin||'')+(stdin?'\n':''),redir.append)){print(`bash: ${redir.path}: No such file or directory`,'err');return 1} }
+  return code }
+
+/* tutorial events */
+function emit(ev){ try{ tutEvent(ev) }catch(e){ console.error(e) } }
+
+function runCmd(argv,stdin){
+  const [cmd,...args]=argv;
+  // VAR=value
+  const asg=cmd.match(/^([A-Za-z_]\w*)=(.*)$/); if(asg&&!args.length){ shell.vars[asg[1]]=asg[2]; return 0 }
+  const fn=CMDS[cmd];
+  let code;
+  if(fn) code=fn(args,stdin);
+  else if(HEAVY.includes(cmd)) code=heavyShell(cmd,args);
+  else { print(`bash: ${cmd}: command not found`,'err'); if(/^(qsub|qstat|qdel|pbsnodes)$/.test(cmd)) print('Tip: qsub/qstat are PBS commands. This practice cluster uses Slurm: sbatch, squeue, scancel.','tip'); code=127 }
+  emit({type:'cmd',cmd,args,ok:code===0,cwd:shell.cwd,host:shell.host});
+  return code }
+
+function fileArgs(args){return args.filter(a=>!a.startsWith('-')||a==='-')}
+function readFileOrErr(cmd,a){ const p=resolve(a,shell.cwd), n=getN(p); if(!n){print(`${cmd}: ${a}: No such file or directory`,'err');return null} if(n.type==='d'){print(`${cmd}: ${a}: Is a directory`,'err');return null} return n.t }
+
+const CMDS={
+  pwd(){print(shell.cwd);return 0},
+  whoami(){print(USER);return 0},
+  id(){print(`uid=${UID}(${USER}) gid=${UID}(${USER}) groups=${UID}(${USER}),3100(hpc_users),3201(practice)`);return 0},
+  hostname(){print(shell.host);return 0},
+  date(){print(dateStr(simMs()));return 0},
+  clear(){outEl.innerHTML='';return 0},
+  history(){shell.history.forEach((h,i)=>print(String(i+1).padStart(5)+'  '+h));return 0},
+  echo(args){print(args.filter(a=>a!=='-e'&&a!=='-n').join(' '));return 0},
+  sleep(args){print(`(practice: sleep ${args[0]||''} skipped on the login node. In a job script it really waits.)`,'dimc');return 0},
+  cd(args){ const t=args[0]==null?HOME:args[0]==='-'?(shell.oldpwd||HOME):args[0]; const p=resolve(t,shell.cwd), n=getN(p);
+    if(!n){print(`bash: cd: ${t}: No such file or directory`,'err');return 1} if(n.type!=='d'){print(`bash: cd: ${t}: Not a directory`,'err');return 1}
+    shell.oldpwd=shell.cwd; shell.cwd=p; renderPrompt(); return 0},
+  ls(args){ const flags=args.filter(a=>a.startsWith('-')).join(''); const long=flags.includes('l'), all=flags.includes('a'), human=flags.includes('h');
+    const targets=fileArgs(args); if(!targets.length)targets.push('.'); let code=0;
+    targets.forEach((t,ti)=>{ const p=resolve(t,shell.cwd), n=getN(p);
+      if(!n){print(`ls: cannot access '${t}': No such file or directory`,'err');code=2;return}
+      const entries=n.type==='d'?Object.keys(n.c).sort().map(k=>[k,n.c[k]]):[[t,n]];
+      if(targets.length>1&&n.type==='d')print(t+':');
+      if(all&&n.type==='d')entries.unshift(['.',n],['..',n]);
+      if(long){ print('total '+entries.length*4);
+        entries.forEach(([k,e])=>{ const isD=e.type==='d', ex=!isD&&k.endsWith('.sh'); const size=isD?4096:(e.t||'').length; const own=p.startsWith('/datasets')?'root    root':`${USER}    ${USER}`;
+          print([[`${isD?'d':'-'}${isD||ex?'rwxr-xr-x':'rw-r--r--'} 1 ${own} ${String(human?(size>1024?(size/1024).toFixed(1)+'K':size):size).padStart(6)} ${lsDate(e.m||simMs())} `,''],[k,isD?'dirc':ex?'exe':'']]) }) }
+      else if(sink){ entries.forEach(([k])=>print(k)) } else { if(entries.length){ const segs=[]; entries.forEach(([k,e],i)=>{segs.push([k,e.type==='d'?'dirc':k.endsWith('.sh')?'exe':'']); if(i<entries.length-1)segs.push(['  ',''])}); print(segs) } }
+      if(targets.length>1&&ti<targets.length-1)print('') });
+    return code},
+  cat(args,stdin){ const fa=fileArgs(args); if(!fa.length){ if(stdin!=null){stdin.split('\n').forEach(l=>print(l));return 0} print('cat: missing file name. Try: cat README.txt','err');return 1}
+    let code=0; fa.forEach(a=>{const t=readFileOrErr('cat',a); if(t==null){code=1;return} t.replace(/\n$/,'').split('\n').forEach(l=>print(l))}); return code},
+  head(args,stdin){return headTail('head',args,stdin)},
+  tail(args,stdin){return headTail('tail',args,stdin)},
+  less(args,stdin){return CMDS.cat(args,stdin)}, more(args,stdin){return CMDS.cat(args,stdin)},
+  grep(args,stdin){ const flags=args.filter(a=>a.startsWith('-')).join(''); const rest=args.filter(a=>!a.startsWith('-')); const pat=rest[0]; if(pat==null){print('Usage: grep PATTERN [FILE]','err');return 2}
+    let re; try{re=new RegExp(pat,flags.includes('i')?'i':'')}catch(e){re=new RegExp(pat.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'))}
+    const srcs=rest.slice(1); let found=false;
+    const scan=(text,label)=>text.split('\n').forEach(l=>{ if(re.test(l)!==flags.includes('v')&&l!==''){found=true;print((label?label+':':'')+l)} });
+    if(!srcs.length){ if(stdin==null){print('grep: no input. Try: grep SBATCH hello.sh','err');return 2} scan(stdin) }
+    else srcs.forEach(s=>{const t=readFileOrErr('grep',s); if(t!=null)scan(t,srcs.length>1?s:'')});
+    return found?0:1},
+  wc(args,stdin){ const fa=fileArgs(args); const go=(t,label)=>{const lines=(t.match(/\n/g)||[]).length, words=t.split(/\s+/).filter(Boolean).length; print(args.includes('-l')?`${lines}${label?' '+label:''}`:`${String(lines).padStart(4)} ${String(words).padStart(5)} ${String(t.length).padStart(6)}${label?' '+label:''}`)};
+    if(!fa.length){ go((stdin||'')+(stdin?'\n':''),''); return 0} fa.forEach(a=>{const t=readFileOrErr('wc',a); if(t!=null)go(t,a)}); return 0},
+  sort(args,stdin){ const fa=fileArgs(args); let t=stdin||''; if(fa.length){t=readFileOrErr('sort',fa[0]); if(t==null)return 1} let ls=t.split('\n').filter(Boolean); ls.sort(); if(args.includes('-r'))ls.reverse(); ls.forEach(l=>print(l)); return 0},
+  touch(args){ let code=0; fileArgs(args).forEach(a=>{const p=resolve(a,shell.cwd); if(!canWrite(p)){print(`touch: cannot touch '${a}': Permission denied`,'err');code=1;return} const n=getN(p); if(n){n.m=simMs();return} if(!writeFile(p,'')){print(`touch: cannot touch '${a}': No such file or directory`,'err');code=1}}); return code},
+  mkdir(args){ const pflag=args.includes('-p'); let code=0; fileArgs(args).forEach(a=>{ const p=resolve(a,shell.cwd); if(!canWrite(p)){print(`mkdir: cannot create directory '${a}': Permission denied`,'err');code=1;return}
+    if(getN(p)){ if(!pflag){print(`mkdir: cannot create directory '${a}': File exists`,'err');code=1} return }
+    const [dp]=parentOf(p); if(!pflag&&!getN(dp)){print(`mkdir: cannot create directory '${a}': No such file or directory`,'err');code=1;return} mkdirp(p) }); return code},
+  rm(args){ const rec=/-\w*r/.test(args.join(' ')); let code=0; fileArgs(args).forEach(a=>{ const p=resolve(a,shell.cwd), n=getN(p);
+    if(!n){print(`rm: cannot remove '${a}': No such file or directory`,'err');code=1;return} if(!canWrite(p)||p===HOME){print(`rm: cannot remove '${a}': Permission denied`,'err');code=1;return}
+    if(n.type==='d'&&!rec){print(`rm: cannot remove '${a}': Is a directory`,'err');code=1;return} const [dp,nm]=parentOf(p); delete getN(dp).c[nm] }); return code},
+  rmdir(args){return CMDS.rm(['-r',...args])},
+  cp(args){ const fa=fileArgs(args); if(fa.length<2){print('cp: missing destination file operand','err');return 1} const src=resolve(fa[0],shell.cwd), n=getN(src);
+    if(!n){print(`cp: cannot stat '${fa[0]}': No such file or directory`,'err');return 1} if(n.type==='d'&&!/-\w*r/.test(args.join(' '))){print(`cp: -r not specified; omitting directory '${fa[0]}'`,'err');return 1}
+    let dst=resolve(fa[1],shell.cwd); const dn=getN(dst); if(dn&&dn.type==='d')dst=dst+'/'+parentOf(src)[1]; if(!canWrite(dst)){print(`cp: cannot create regular file '${fa[1]}': Permission denied`,'err');return 1}
+    const [dp,nm]=parentOf(dst), dd=getN(dp); if(!dd){print(`cp: cannot create regular file '${fa[1]}': No such file or directory`,'err');return 1} dd.c[nm]=JSON.parse(JSON.stringify(n)); dd.c[nm].m=simMs(); return 0},
+  mv(args){ const fa=fileArgs(args); if(fa.length<2){print('mv: missing destination file operand','err');return 1} const src=resolve(fa[0],shell.cwd), n=getN(src);
+    if(!n){print(`mv: cannot stat '${fa[0]}': No such file or directory`,'err');return 1} if(!canWrite(src)){print(`mv: cannot move '${fa[0]}': Permission denied`,'err');return 1}
+    let dst=resolve(fa[1],shell.cwd); const dn=getN(dst); if(dn&&dn.type==='d')dst=dst+'/'+parentOf(src)[1]; const [dp,nm]=parentOf(dst), dd=getN(dp);
+    if(!dd||!canWrite(dst)){print(`mv: cannot move '${fa[0]}' to '${fa[1]}': No such file or directory`,'err');return 1} dd.c[nm]=n; const [sp,sn]=parentOf(src); delete getN(sp).c[sn]; return 0},
+  nano(args){ const a=fileArgs(args)[0]; if(!a){print('Give a file name, for example: nano myjob.sh','err');return 1} const p=resolve(a,shell.cwd), n=getN(p);
+    if(n&&n.type==='d'){print(`nano: ${a} is a directory`,'err');return 1} if(!n&&!getN(parentOf(p)[0])){print(`nano: ${a}: No such file or directory`,'err');return 1}
+    openEditor(p,n?n.t:''); return 0},
+  vim(args){print('(practice: vim opens the same simple editor as nano here)','dimc');return CMDS.nano(args)}, vi(args){return CMDS.vim(args)}, edit(args){return CMDS.nano(args)},
+  which(args){ args.forEach(a=>{ if(CMDS[a])print('/usr/bin/'+a); else if(NEEDS[a]&&NEEDS[a].some(m=>hasMod(shell.modules,m)))print(`/apps/${NEEDS[a].find(m=>hasMod(shell.modules,m))}/bin/${a}`); else print(`/usr/bin/which: no ${a} in (/usr/local/bin:/usr/bin:/bin)`,'err')}); return 0},
+  quota(){ const used=(JSON.stringify(getN(HOME)).length/1024).toFixed(1);
+    print('Filesystem          Used      Limit    Files     Note'); print(`/home/${USER}        ${(used/1024+1.2).toFixed(2)}G    50G      ${countFiles(getN(HOME))}        backed up nightly`); print(`/scratch/${USER}     0.00G     2T       ${countFiles(getN('/scratch/mudy'))}         purged after 30 days, not backed up`); return 0},
+  myquota(){return CMDS.quota()},
+  df(){ print('Filesystem             Size  Used Avail Use% Mounted on'); print('home-nfs:/export/home  200T  141T   59T  71% /home'); print('lustre:/scratch        2.1P  1.3P  0.8P  62% /scratch'); print('lustre:/datasets       400T  388T   12T  97% /datasets'); return 0},
+  top(){ print('top - practice view (one snapshot)'); print('  PID USER      %CPU %MEM COMMAND'); print('  812 root       0.3  0.1 sshd'); print(` 9133 ${USER}      0.0  0.0 bash`); print(' 7741 hbakr     98.0  2.1 python   <- someone running heavy work on the login node. Admins will kill this.','tip'); return 0},
+  htop(){return CMDS.top()},
+  module(args){return moduleCmd(args)}, ml(args){ if(!args.length)return moduleCmd(['list']); if(['avail','list','purge','spider','unload','load','show'].includes(args[0]))return moduleCmd(args); return moduleCmd(['load',...args])},
+  sbatch(args){return sbatchCmd(args)},
+  squeue(args){return squeueCmd(args)},
+  sinfo(args){return sinfoCmd(args)},
+  scancel(args){return scancelCmd(args)},
+  sacct(args){return sacctCmd(args)},
+  scontrol(args){return scontrolCmd(args)},
+  seff(args){return seffCmd(args)},
+  srun(args){return srunCmd(args)},
+  salloc(){print('salloc works on real clusters too. In this practice, use:  srun -p debug --time=00:30:00 --pty bash','tip');return 1},
+  ssh(args){ const h=args.filter(a=>!a.startsWith('-')).pop(); if(!h){print('usage: ssh hostname','err');return 1} const n=nodeByName(h.split('@').pop());
+    if(!n){print(`ssh: Could not resolve hostname ${h}: Name or service not known`,'err');return 255}
+    if(!userJobs.some(j=>j.state==='RUNNING'&&j.nodelist.includes(n.name))){print(`Access denied by pam_slurm_adopt: you have no active jobs on this node`,'err');print('Connection closed by '+n.name+' port 22','err');return 255}
+    print(`(practice: you have a job on ${n.name}, so ssh is allowed. Use it to watch your job with top; type exit to come back.)`,'tip'); return 0},
+  exit(){ if(shell.ijob){ endInteractive(); return 0 } print('logout','dimc'); print(`Connection to practice-cluster closed. (Practice mode: you are logged back in.)`,'dimc'); motd(); return 0},
+  logout(){return CMDS.exit()},
+  man(args){ const t=args[0]; const M={sbatch:'sbatch [options] script.sh   Submit a batch job. Options can also go in the script as #SBATCH lines.\n  -J, --job-name   -p, --partition   -N, --nodes   -n, --ntasks\n  -c, --cpus-per-task   --mem   -t, --time   -o, --output   --gres=gpu:N   --wrap="cmd"',
+    squeue:'squeue [--me] [-u user] [-j id] [-p partition] [-t state]   Show queued and running jobs.\n  ST codes: PD pending, R running, CG completing.',
+    sinfo:'sinfo [-p partition] [-N]   Show partitions and node states (idle, mix, alloc, drain, down).',
+    scancel:'scancel <jobid> | scancel -u mudy   Cancel your job(s).',
+    sacct:'sacct [-j id] [-X] [--format=JobID,JobName,State,Elapsed,MaxRSS,ExitCode]   History of your jobs, including finished ones.',
+    seff:'seff <jobid>   CPU and memory efficiency of a finished job. Use it to right-size the next request.',
+    srun:'srun [options] --pty bash   Interactive shell on a compute node.\nsrun [options] command      Run one command on a compute node.',
+    module:'module avail | load NAME | unload NAME | list | purge | spider NAME'};
+    if(!t){print('What manual page do you want? Try: man sbatch','err');return 1} if(M[t]){M[t].split('\n').forEach(l=>print(l));return 0} print(`No manual entry for ${t} in practice mode. Try: help`,'err');return 16},
+  help(){ [ 'Practice cluster: supported commands',
+    '  Files      pwd ls cd cat head tail less grep wc mkdir touch cp mv rm nano',
+    '  Modules    module avail | load | unload | list | purge | spider',
+    '  Slurm      sbatch squeue sinfo scancel sacct scontrol seff srun',
+    '  Other      date hostname whoami quota df history clear man <cmd>',
+    '  Software   foldseek mmseqs python blastp (need a module, and should run inside a job)',
+    'Tips: press Tab to complete file names, Up/Down for history, Ctrl+L to clear.'].forEach((l,i)=>print(l,i?'':'info')); return 0},
+};
+function countFiles(n){ if(!n)return 0; if(n.type==='f')return 1; return Object.values(n.c).reduce((a,c)=>a+countFiles(c),0)}
+function headTail(cmd,args,stdin){ let n=10; const out=[]; const fa=[]; for(let i=0;i<args.length;i++){ const a=args[i]; if(a==='-n'){n=+args[++i];continue} if(/^-\d+$/.test(a)){n=+a.slice(1);continue} if(a==='-f'){continue} fa.push(a) }
+  const go=t=>{ let ls=t.replace(/\n$/,'').split('\n'); ls=cmd==='head'?ls.slice(0,n):ls.slice(-n); ls.forEach(l=>print(l)) };
+  if(args.includes('-f'))print('(practice: tail -f shows a snapshot here. Run it again to see new lines.)','dimc');
+  if(!fa.length){ if(stdin==null){print(`${cmd}: missing file name`,'err');return 1} go(stdin);return 0 }
+  let code=0; fa.forEach(a=>{const t=readFileOrErr(cmd,a); if(t==null){code=1;return} if(fa.length>1)print(`==> ${a} <==`); go(t)}); return code}
+
+/* ---------- modules ---------- */
+function moduleCmd(args){ const sub=args[0];
+  if(!sub){print('Usage: module avail | load NAME | unload NAME | list | purge | spider NAME','err');return 1}
+  if(sub==='avail'||sub==='av'){ print('---------------------------- /apps/modulefiles ----------------------------','dimc');
+    const items=[]; Object.keys(MODS).sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'})).forEach(k=>MODS[k].forEach((v,i)=>items.push(`${k}/${v}${i===0&&MODS[k].length>1?' (D)':''}`)));
+    for(let i=0;i<items.length;i+=3)print('   '+items.slice(i,i+3).map(s=>s.padEnd(26)).join(''));
+    print(''); print('  Where:  D: Default Module','dimc'); print('Use "module spider" to find all possible modules.','dimc'); return 0}
+  if(sub==='list'){ if(!shell.modules.length){print('No modules loaded');return 0} print('Currently Loaded Modules:'); print('  '+shell.modules.map((m,i)=>`${i+1}) ${m}`).join('   ')); return 0}
+  if(sub==='purge'){ shell.modules=[]; renderPrompt(); return 0}
+  if(sub==='load'||sub==='add'){ let code=0; args.slice(1).forEach(a=>{ const r=modResolve(a); if(!r){print('Lmod has detected the following error:  The following module(s) are unknown:','err');print(`"${a}"`,'err');print('   Please check the spelling or version number. Also try "module spider ..."','err');code=1;return}
+      const base=r.split('/')[0]; if(hasMod(shell.modules,base)){ shell.modules=shell.modules.filter(m=>m.split('/')[0]!==base); if(!shell.modules.includes(r))print(`The following have been reloaded with a version change:\n  1) ${base} => ${r}`)} shell.modules.push(r) }); renderPrompt(); return code}
+  if(sub==='unload'||sub==='rm'){ args.slice(1).forEach(a=>{shell.modules=shell.modules.filter(m=>m!==a&&m.split('/')[0]!==a)}); renderPrompt(); return 0}
+  if(sub==='spider'||sub==='show'){ const a=args[1]; if(!a){print('module spider NAME','err');return 1} const b=a.split('/')[0], k=Object.keys(MODS).find(x=>x.toLowerCase()===b.toLowerCase());
+    if(!k){print(`Lmod has detected the following error: Unable to find: "${a}".`,'err');return 1}
+    print('----------------------------------------------------------------------------'); print(`  ${k}:`); print('----------------------------------------------------------------------------'); print('     Versions:'); MODS[k].forEach(v=>print(`        ${k}/${v}`)); print(''); print(`  Load with:  module load ${k}`); return 0}
+  print(`Lmod has detected the following error: Invalid command "${sub}"`,'err'); return 1}
+
+/* ---------- heavy programs ---------- */
+function heavyShell(cmd,args){
+  const quick=args.some(a=>/^(-h|--help|--version|-V|version)$/.test(a));
+  if(cmd!=='nvidia-smi'){ const need=NEEDS[cmd]; if(!need.some(m=>hasMod(shell.modules,m))){ print(`bash: ${cmd}: command not found`,'err'); print(`Tip: software is not on the PATH until you load it. Try: module load ${need[0]}`,'tip'); return 127 } }
+  if(shell.host===LOGIN&&!quick){ if(cmd==='nvidia-smi'){print('bash: nvidia-smi: command not found','err');print('Tip: GPUs live on gpu01-gpu04. Ask for one in a job with --partition=gpu --gres=gpu:1','tip');return 127}
+    print(`login01: "${cmd}" is heavy work. Running it on the login node slows everyone down, and admins kill such processes.`,'tip');
+    print('Put it in a job script and submit it with sbatch, or open a compute node with:  srun -p debug --pty bash','tip'); return 1 }
+  const j=shell.ijob; const ctx=newCtx({id:j?j.id:0,cpt:j?j.cpt:1,ntasks:1,gpus:j?j.gpus:0,nodelist:[shell.host],start:simMs(),name:'bash',part:j?j.part:'debug',workdir:shell.cwd}, shell.cwd, shell.modules.slice());
+  const code=runProgram(cmd,args,ctx,0);
+  ctx.lines.forEach(l=>print(l.text,l.err?'err':''));
+  applyFiles(ctx);
+  if(ctx.t>1) print(`(practice: this took ${fmtHMS(ctx.t)} of cluster time; in an interactive session you would be waiting)`,'dimc');
+  return code }
+function newCtx(job,cwd,modules){ return {job,cwd,modules,vars:{},t:0,lines:[],files:[],dirs:[],cpuEff:0.02,memGB:0.05,setE:false} }
+function ctxEnv(ctx){ const j=ctx.job; return {USER,HOME,PWD:ctx.cwd,HOSTNAME:j.nodelist[0],SLURM_JOB_ID:j.id,SLURM_JOB_NAME:j.name,SLURM_CPUS_PER_TASK:j.cpt,SLURM_NTASKS:j.ntasks,SLURM_NNODES:j.nodes||1,
+  SLURM_JOB_NODELIST:hostlist(j.nodelist),SLURM_SUBMIT_DIR:j.workdir,SLURM_JOB_PARTITION:j.part,TMPDIR:'/tmp/'+j.id,...ctx.vars} }
+function out(ctx,text,err){ ctx.lines.push({t:ctx.t,text,err:!!err}) }
+function applyFiles(ctx){ ctx.dirs.forEach(d=>mkdirp(d)); ctx.files.forEach(f=>writeFile(f.path,f.text)); ctx.files=[]; ctx.dirs=[] }
+function existsLater(ctx,p){ return !!getN(p)||ctx.dirs.some(d=>d===p||d.startsWith(p+'/'))||ctx.files.some(f=>f.path===p) }
+
+function runProgram(cmd,args,ctx,lineNo){
+  const prefix=lineNo?`/var/spool/slurmd/job${ctx.job.id}/slurm_script: line ${lineNo}: `:'bash: ';
+  if(cmd!=='nvidia-smi'&&NEEDS[cmd]&&!NEEDS[cmd].some(m=>hasMod(ctx.modules,m))){ out(ctx,`${prefix}${cmd}: command not found`,true); return 127 }
+  if(cmd==='nvidia-smi'){ const g=ctx.job.gpus||0; const n=nodeByName(ctx.job.nodelist[0]);
+    if(!g||!n||!n.gpus){ out(ctx,"NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver.",true); out(ctx,'(No GPU was requested for this job, or this is not a GPU node.)',true); return 9 }
+    out(ctx,'+-----------------------------------------------------------------------------+'); out(ctx,'| NVIDIA-SMI 535.104.12   Driver Version: 535.104.12   CUDA Version: 12.2     |');
+    out(ctx,'|-------------------------------+----------------------+----------------------+'); out(ctx,'| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |');
+    for(let i=0;i<g;i++){ out(ctx,`|   ${i}  Tesla V100-SXM2...  On   | 00000000:${p2(26+i)}:00.0 Off |                    0 |`); out(ctx,'| N/A   34C    P0    41W / 300W |      0MiB / 32768MiB |      0%      Default |') }
+    out(ctx,'+-------------------------------+----------------------+----------------------+'); ctx.t+=0.1; return 0 }
+  if(cmd==='foldseek'){ const sub=args[0];
+    if(!sub||sub==='-h'||sub==='--help'){ ['foldseek Version: 9.427df8a','Usage: foldseek <command> [<args>]','  easy-search  query.pdb targetDB result.m8 tmpDir [--threads N] [-e evalue]','  createdb     dir/ outDB','  databases    NAME outDB tmpDir (download; disabled in practice)'].forEach(l=>out(ctx,l)); return 0 }
+    if(sub==='version'||sub==='--version'){ out(ctx,'9.427df8a'); return 0 }
+    if(sub==='databases'){ out(ctx,'Compute nodes have no internet access. Use the shared copy in /datasets/esm_atlas/foldseek/',true); return 1 }
+    if(sub==='createdb'){ const src=args[1], dst=args[2]; if(!src||!dst){out(ctx,'Not enough input paths provided. 2 required.',true);return 1} const sp=resolve(src,ctx.cwd);
+      if(!getN(sp)){out(ctx,`Input ${src} does not exist`,true);return 1} out(ctx,`createdb ${src} ${dst}`); out(ctx,'Output file: '+dst); ctx.t+=3; out(ctx,'Time for processing: 0h 3m 2s 115ms'); ctx.files.push({path:resolve(dst,ctx.cwd),text:'[binary Foldseek database]\n'}); return 0 }
+    if(sub!=='easy-search'){ out(ctx,`Invalid Command: ${sub}`,true); return 1 }
+    const pos=[]; let threads=ctx.job.cpt||1, ev='0.001';
+    for(let i=1;i<args.length;i++){ const a=args[i]; if(a==='--threads'){threads=parseInt(args[++i])||1;continue} if(a==='-e'){ev=args[++i];continue} if(a.startsWith('-')){ if(args[i+1]&&!args[i+1].startsWith('-'))i++; continue} pos.push(a) }
+    if(pos.length<4){ out(ctx,`Not enough input paths provided. 4 required (query, target, result, tmp). Got ${pos.length}.`,true); if(pos.length===3)out(ctx,'Hint: is $TMPDIR empty? Variables only exist inside a job.',true); return 1 }
+    const [q,db,res,tmp]=pos.map(x=>resolve(x,ctx.cwd));
+    if(!getN(q)){ out(ctx,`Input ${pos[0]} does not exist`,true); return 1 }
+    if(!getN(db)){ out(ctx,`Input ${pos[1]} does not exist`,true); return 1 }
+    if(!existsLater(ctx,parentOf(res)[0])){ out(ctx,`Error: cannot write ${pos[2]}. Folder ${parentOf(res)[0]} does not exist (did you forget mkdir -p?)`,true); return 1 }
+    if(!canWrite(res)){ out(ctx,`Error: cannot write ${pos[2]}: Permission denied`,true); return 1 }
+    const cores=ctx.job.cpt||1, eff=Math.min(threads,cores);
+    const qname=parentOf(q)[1].replace(/\.pdb$/,'');
+    out(ctx,`easy-search ${pos.join(' ')} --threads ${threads} -e ${ev}`); out(ctx,''); out(ctx,'MMseqs Version:        	9.427df8a'); out(ctx,`Threads                	${threads}`); out(ctx,`E-value threshold      	${ev}`); out(ctx,'');
+    out(ctx,`createdb ${pos[0]} ${tmp}/query --threads ${threads}`); ctx.t+=0.2; out(ctx,'[=================================================================] 100.00% 1 eta -'); out(ctx,'Time for processing: 0h 0m 0s 412ms');
+    const total=Math.max(4,Math.round(320/eff));
+    out(ctx,'prefilter /datasets/esm_atlas/foldseek/esm_atlas_hq_ss query_ss pref --threads '+threads);
+    out(ctx,'Query database size: 1 type: Aminoacid'); out(ctx,'Target database size: 36912557 type: Aminoacid');
+    for(let k=1;k<=4;k++){ ctx.t+=total*0.17; out(ctx,`[${'='.repeat(k*16).padEnd(65,' ')}] ${(k*25).toFixed(2)}% 36.91M eta ${fmtHMS(total*(1-k*0.25)*0.7).slice(0,8)}`) }
+    out(ctx,`${Math.floor(1800+rnd()*900)} k-mers per position`); out(ctx,'Time for processing: '+fmtHMS(total*0.68).replace(/^(\d+):(\d+):(\d+)$/,'$1h $2m $3s'));
+    out(ctx,'structurealign query_ss target pref aln --threads '+threads); ctx.t+=total*0.27; out(ctx,'[=================================================================] 100.00% 1 eta -');
+    out(ctx,'convertalis query target aln '+pos[2]); ctx.t+=total*0.05; out(ctx,'[=================================================================] 100.00% 1 eta -');
+    out(ctx,'Time for processing: '+fmtHMS(total).replace(/^(\d+):(\d+):(\d+)$/,'$1h $2m $3s'));
+    if(threads>cores) out(ctx,`Warning: ${threads} threads requested but only ${cores} cores allocated. Threads will fight for CPU.`,true);
+    ctx.files.push({path:res,text:makeHits(qname)});
+    ctx.cpuEff=threads>=cores?0.9-rnd()*0.08:Math.max(0.05,threads/cores*0.9); ctx.memGB=Math.max(ctx.memGB,6+rnd()*6);
+    if(!existsLater(ctx,tmp)) ctx.dirs.push(tmp);
+    return 0 }
+  if(cmd==='python'||cmd==='python3'){ const f=args.find(a=>!a.startsWith('-'));
+    if(args.includes('--version')||args.includes('-V')){ out(ctx,'Python '+(ctx.modules.find(m=>m.startsWith('python'))||'python/3.11.7').split('/')[1]); return 0 }
+    if(!f){ out(ctx,'(practice: interactive Python is not simulated. Run a script: python myscript.py)',true); return 1 }
+    const p=resolve(f,ctx.cwd), n=getN(p); if(!n){ out(ctx,`python: can't open file '${p}': [Errno 2] No such file or directory`,true); return 2 }
+    (n.t.match(/print\(\s*(?:f?["'])(.*?)["']\s*\)/g)||[]).forEach(m=>out(ctx,m.replace(/^print\(\s*f?["']/,'').replace(/["']\s*\)$/,'')));
+    ctx.t+=2; ctx.cpuEff=0.97; ctx.memGB=Math.max(ctx.memGB,0.4); return 0 }
+  if(cmd==='mmseqs'||cmd==='blastp'||cmd==='hmmsearch'||cmd==='Rscript'||cmd==='vina'){ out(ctx,`${cmd}: practice mode only simulates Foldseek in detail. This step "ran" for 5 minutes.`); ctx.t+=5; ctx.cpuEff=0.7; ctx.memGB=Math.max(ctx.memGB,2); return 0 }
+  out(ctx,`${prefix}${cmd}: command not found`,true); return 127 }
+function makeHits(q){ const lines=[]; let bits=520+rnd()*60, ev=1e-70;
+  for(let i=0;i<15;i++){ const id='MGYP'+String(Math.floor(1e11+rnd()*9e11)).padStart(12,'0'); const fid=(0.62-i*0.03-rnd()*0.04).toFixed(3); const aln=Math.floor(130+rnd()*40);
+    lines.push([q,id,fid,aln,Math.floor(aln*(1-fid)),Math.floor(rnd()*4),1+Math.floor(rnd()*4),aln+Math.floor(rnd()*6),1+Math.floor(rnd()*20),aln+Math.floor(rnd()*30),ev.toExponential(3).replace('e','E'),Math.round(bits)].join('\t'));
+    bits*=0.88; ev*=Math.pow(10,3+rnd()*2); }
+  return lines.join('\n')+'\n' }
+
+/* ---------- batch script evaluation ---------- */
+function runScript(job){
+  const ctx=newCtx(job,job.workdir,job.modules.slice()); let exit=0;
+  const L=job.script.split('\n');
+  for(let i=0;i<L.length;i++){ const s=L[i].trim(); if(!s||s.startsWith('#'))continue;
+    exit=evalLine(s,ctx,i+1); if(ctx.setE&&exit!==0)break; }
+  ctx.exit=exit; return ctx }
+function evalLine(line,ctx,lineNo){
+  const env=ctxEnv(ctx); const toks=tokenize(expand(line,env,ctx.job.start+ctx.t*60000));
+  let words=toks.filter(t=>t.w!=null).map(t=>t.w); const ri=toks.findIndex(t=>t.op==='>'||t.op==='>>');
+  let redir=null; if(ri>=0&&toks[ri+1]){ redir={path:resolve(toks[ri+1].w,ctx.cwd),append:toks[ri].op==='>>'}; words=toks.slice(0,ri).filter(t=>t.w!=null).map(t=>t.w) }
+  if(!words.length)return 0;
+  let [cmd,...args]=words;
+  if(cmd==='srun'){ while(args.length&&args[0].startsWith('-')){ const a=args.shift(); if(!a.includes('=')&&/^-(n|c|N|p|t)$/.test(a))args.shift() } if(!args.length)return 0; [cmd,...args]=args }
+  const asg=cmd.match(/^([A-Za-z_]\w*)=(.*)$/); if(asg){ ctx.vars[asg[1]]=asg[2]; return 0 }
+  const pre=`/var/spool/slurmd/job${ctx.job.id}/slurm_script: line ${lineNo}: `;
+  switch(cmd){
+    case 'export': args.forEach(a=>{const m=a.match(/^(\w+)=(.*)$/); if(m)ctx.vars[m[1]]=m[2]}); return 0;
+    case 'set': if(args.some(a=>/^-\w*e/.test(a)))ctx.setE=true; return 0;
+    case 'echo': { const txt=args.filter(a=>a!=='-e'&&a!=='-n').join(' '); if(redir){ const prev=ctx.files.find(f=>f.path===redir.path); const base=redir.append?(prev?prev.text:(getN(redir.path)||{}).t||''):''; if(prev)prev.text=base+txt+'\n'; else ctx.files.push({path:redir.path,text:base+txt+'\n'}); } else out(ctx,txt); return 0 }
+    case 'date': out(ctx,dateStr(ctx.job.start+ctx.t*60000)); return 0;
+    case 'hostname': out(ctx,ctx.job.nodelist[0]); return 0;
+    case 'whoami': out(ctx,USER); return 0;
+    case 'nproc': out(ctx,String(ctx.job.cpt)); return 0;
+    case 'pwd': out(ctx,ctx.cwd); return 0;
+    case 'sleep': { const n=parseFloat(args[0])||0; const unit=(args[0]||'').slice(-1); ctx.t+=unit==='m'?n:unit==='h'?n*60:n/60; return 0 }
+    case 'cd': { const p=resolve(args[0]||HOME,ctx.cwd); if(!existsLater(ctx,p)){ out(ctx,`${pre}cd: ${args[0]}: No such file or directory`,true); return 1 } ctx.cwd=p; return 0 }
+    case 'mkdir': { args.filter(a=>!a.startsWith('-')).forEach(a=>ctx.dirs.push(resolve(a,ctx.cwd))); return 0 }
+    case 'module': case 'ml': { const sub=cmd==='ml'&&args[0]&&!['load','purge','list','unload'].includes(args[0])?'load':args[0]; const rest=cmd==='ml'&&sub==='load'&&args[0]!=='load'?args:args.slice(1);
+      if(sub==='purge'){ctx.modules=[];return 0} if(sub==='list'){out(ctx,ctx.modules.length?'Currently Loaded Modules:\n  '+ctx.modules.join('  '):'No modules loaded');return 0}
+      if(sub==='load'){ let c=0; rest.forEach(a=>{const r=modResolve(a); if(!r){out(ctx,`Lmod has detected the following error:  The following module(s) are unknown: "${a}"`,true);c=1;return} ctx.modules=ctx.modules.filter(m=>m.split('/')[0]!==r.split('/')[0]); ctx.modules.push(r)}); return c }
+      if(sub==='unload'){ ctx.modules=ctx.modules.filter(m=>!rest.includes(m)&&!rest.includes(m.split('/')[0])); return 0 } return 0 }
+    case 'ls': case 'cat': case 'cp': case 'mv': case 'rm': case 'touch': case 'source': case 'conda': return 0;
+  }
+  if(HEAVY.includes(cmd)||NEEDS[cmd]) return runProgram(cmd,args,ctx,lineNo);
+  out(ctx,`${pre}${cmd}: command not found`,true); return 127 }
+
+/* ---------- sbatch ---------- */
+const SHORT={'-J':'job-name','-p':'partition','-N':'nodes','-n':'ntasks','-c':'cpus-per-task','-t':'time','-o':'output','-e':'error','-G':'gpus','-D':'chdir'};
+function parseOpts(words,opts){ const rest=[]; for(let i=0;i<words.length;i++){ const w=words[i];
+    if(w.startsWith('--')){ const eq=w.indexOf('='); if(eq>0)opts[w.slice(2,eq)]=w.slice(eq+1); else if(['wrap','job-name','partition','nodes','ntasks','cpus-per-task','time','output','error','mem','gres','gpus','mail-type','mail-user','account','chdir','mem-per-cpu','array','dependency'].includes(w.slice(2))) opts[w.slice(2)]=words[++i]; else opts[w.slice(2)]=true }
+    else if(SHORT[w.slice(0,2)]&&w.startsWith('-')){ opts[SHORT[w.slice(0,2)]]=w.length>2?w.slice(2):words[++i] }
+    else rest.push(w) } return rest }
+function sbatchCmd(args){
+  const opts={}; const rest=parseOpts(args,opts);
+  let script, scriptPath, workdir=shell.cwd;
+  if(opts.wrap){ script='#!/bin/sh\n'+opts.wrap+'\n'; scriptPath='(wrap)' }
+  else { const f=rest[0]; if(!f){print('sbatch: error: Batch job submission failed: no script given. Example: sbatch hello.sh','err');return 1}
+    scriptPath=resolve(f,shell.cwd); const n=getN(scriptPath); if(!n||n.type!=='f'){print(`sbatch: error: Unable to open file ${f}`,'err');return 1} script=n.t }
+  if(!script.startsWith('#!')){ print('sbatch: error: This does not look like a batch script.  The first','err'); print('sbatch: error: line must start with #! followed by the path to an interpreter.','err'); print('sbatch: error: For instance: #!/bin/sh','err'); return 1 }
+  // #SBATCH lines, only before the first command
+  const so={}; for(const raw of script.split('\n').slice(1)){ const s=raw.trim(); if(!s)continue; if(s.startsWith('#SBATCH')){ parseOpts(tokenize(s.slice(7)).filter(t=>t.w!=null).map(t=>t.w),so); continue } if(s.startsWith('#'))continue; break }
+  const o={...so,...opts};
+  const part=partOf(o.partition||'compute');
+  if(!part){ print(`sbatch: error: invalid partition specified: ${o.partition}`,'err'); print('sbatch: error: Batch job submission failed: Invalid partition name specified','err'); print('Tip: run sinfo to see partition names.','tip'); return 1 }
+  const nn=parseInt(o.nodes||1), nt=parseInt(o.ntasks||1), cpt=parseInt(o['cpus-per-task']||1);
+  if([nn,nt,cpt].some(x=>isNaN(x)||x<1)){ print('sbatch: error: Invalid numeric value in --nodes, --ntasks or --cpus-per-task','err'); return 1 }
+  const cpn=Math.ceil(nt*cpt/nn);
+  let lim=o.time!=null?parseTime(o.time):part.deflim; if(isNaN(lim)||lim<=0){ print(`sbatch: error: Invalid --time specification: ${o.time}`,'err'); print('Tip: use HH:MM:SS (02:00:00) or D-HH:MM:SS (1-12:00:00).','tip'); return 1 }
+  let mem=o.mem!=null?parseMem(o.mem):(o['mem-per-cpu']?parseMem(o['mem-per-cpu'])*cpn:Math.min(cpn*4096,part.mem)); if(isNaN(mem)){ print(`sbatch: error: Invalid --mem specification: ${o.mem}`,'err'); print('Tip: use a unit, for example --mem=16G','tip'); return 1 }
+  let gpus=0; if(o.gres){ const m=String(o.gres).match(/gpu(?::[a-z0-9]+)?:(\d+)/i); gpus=m?+m[1]:1 } if(o.gpus)gpus=parseInt(o.gpus)||1;
+  if(lim>part.max){ print('sbatch: error: Batch job submission failed: Requested time limit is invalid (missing or exceeds some limit)','err'); print(`Tip: the ${part.name} partition allows at most ${fmtHMS(part.max)}.`,'tip'); return 1 }
+  if(cpn>part.cpus||mem>part.mem||(gpus&&!part.gpus)||gpus>part.gpus||nn>(part.to-part.from+1)){
+    if(mem>part.mem) print('sbatch: error: Memory specification can not be satisfied','err');
+    print('sbatch: error: Batch job submission failed: Requested node configuration is not available','err');
+    print(`Tip: ${part.name} nodes have ${part.cpus} cores, ${fmtMem(part.mem)} memory${part.gpus?', '+part.gpus+' GPUs':', no GPUs'}.${gpus&&!part.gpus?' Use --partition=gpu for GPUs.':''}`,'tip'); return 1 }
+  const id=nextId++; const name=o['job-name']||(opts.wrap?'wrap':parentOf(scriptPath)[1]);
+  if(o.chdir)workdir=resolve(o.chdir,shell.cwd);
+  const outPat=o.output||'slurm-%j.out'; const fill=s=>resolve(s.replace(/%j/g,id).replace(/%x/g,name).replace(/%u/g,USER),workdir);
+  const job={id,name,user:USER,part:part.name,nodes:nn,ntasks:nt,cpt,cpn,mem,limit:lim,gpus,state:'PENDING',reason:'Priority',submit:simMs(),pendUntil:simMs()+(2+rnd()*2)*60000+(part.name==='gpu'?4*60000:0),
+    nodelist:[],workdir,script,scriptPath,out:fill(outPat),err:o.error?fill(o.error):null,modules:shell.modules.slice(),exit:null};
+  if(!getN(parentOf(job.out)[0])) print(`Warning: the output folder ${parentOf(job.out)[0]} does not exist. Slurm will not be able to write the log.`,'tip');
+  userJobs.push(job); print(`Submitted batch job ${id}`);
+  emit({type:'submit',job}); renderSide(); return 0 }
+
+/* ---------- scheduling ---------- */
+function allocate(job){ const cand=nodes.filter(n=>n.part===job.part&&!n.admin&&n.cpus-n.used>=job.cpn&&(n.gpus-n.gused)>=job.gpus).sort((a,b)=>b.used-a.used);
+  if(cand.length<job.nodes)return null; const pickd=cand.slice(0,job.nodes); pickd.forEach(n=>{n.used+=job.cpn;n.gused+=job.gpus;n.jobs.push(job.id)}); return pickd.map(n=>n.name) }
+function release(job){ job.nodelist.forEach(nm=>{const n=nodeByName(nm); if(n&&n.jobs.includes(job.id)){n.used-=job.cpn;n.gused-=job.gpus;n.jobs=n.jobs.filter(x=>x!==job.id)}}) }
+function startJob(job,now){ const nl=allocate(job); if(!nl){job.reason='Resources';return false}
+  job.nodelist=nl; job.start=now; job.state='RUNNING'; job.reason='None';
+  if(!job.interactive){ const ctx=runScript(job); job.res={lines:ctx.lines,runtime:Math.max(ctx.t,0.3),exit:ctx.exit,files:ctx.files,dirs:ctx.dirs,cpuEff:ctx.cpuEff,memGB:ctx.memGB};
+    ctx.dirs.filter(d=>canWrite(d)).forEach(d=>mkdirp(d)); writeLog(job,0) }
+  return true }
+function writeLog(job,elapsed,extra){ const sel=(err)=>job.res.lines.filter(l=>l.t<=elapsed+1e-9&&(job.err?l.err===err:true)).map(l=>l.text).concat(extra&&(!job.err||err)?[extra]:[]).join('\n');
+  const t=sel(false); writeFile(job.out,t+(t?'\n':'')); if(job.err){const e=sel(true); writeFile(job.err,e+(e?'\n':''))} }
+function finishJob(job,state,now,extra){ job.end=now; job.state=state; release(job);
+  if(job.res){ const el=(now-job.start)/60000; writeLog(job,state==='COMPLETED'||state==='FAILED'?Infinity:el,extra); if(state==='COMPLETED'||state==='FAILED') job.res.files.forEach(f=>{ if(canWrite(f.path))writeFile(f.path,f.text) }) }
+  emit({type:'job',job}); save() }
+function tick(){
+  const now=simMs(); let changed=false;
+  for(const job of userJobs){
+    if(job.state==='PENDING'&&now>=job.pendUntil){ if(startJob(job,now))changed=true }
+    else if(job.state==='RUNNING'&&!job.interactive){ const el=(now-job.start)/60000;
+      if(el>=job.limit&&job.res.runtime>job.limit){ job.exit='0:15'; finishJob(job,'TIMEOUT',job.start+job.limit*60000,`slurmstepd: error: *** JOB ${job.id} ON ${job.nodelist[0]} CANCELLED AT ${isoStr(job.start+job.limit*60000)} DUE TO TIME LIMIT ***`); changed=true }
+      else if(el>=job.res.runtime){ job.exit=job.res.exit+':0'; finishJob(job,job.res.exit===0?'COMPLETED':'FAILED',job.start+job.res.runtime*60000); changed=true }
+      else writeLog(job,el) }
+    else if(job.state==='RUNNING'&&job.interactive&&(now-job.start)/60000>=job.limit){ if(shell.ijob===job){ print(''); print(`srun: error: *** STEP ${job.id}.0 ON ${job.nodelist[0]} CANCELLED AT ${isoStr(now)} DUE TO TIME LIMIT ***`,'err'); endInteractive(true) } }
+  }
+  if(rnd()<0.012){bgChurn();changed=true}
+  $('#clock').textContent=dateStr(now).replace(' +03','');
+  renderSideThrottled(changed) }
+
+/* ---------- squeue / sinfo / scancel / sacct / scontrol / seff / srun ---------- */
+function allQueue(){ const rows=[]; const now=simMs();
+  bgPend.forEach(j=>rows.push({id:j.id,part:j.part,name:j.name,user:j.user,st:'PD',time:0,nodes:j.nodes,where:j.reason}));
+  userJobs.filter(j=>j.state==='PENDING').forEach(j=>rows.push({id:j.id,part:j.part,name:j.name,user:USER,st:'PD',time:0,nodes:j.nodes,where:'('+j.reason+')',mine:1}));
+  bgRun.forEach(j=>rows.push({id:j.id,part:j.part,name:j.name,user:j.user,st:'R',time:(now-j.start)/60000,nodes:j.nodes,where:hostlist(j.nodelist)}));
+  userJobs.filter(j=>j.state==='RUNNING').forEach(j=>rows.push({id:j.id,part:j.part,name:j.name,user:USER,st:'R',time:(now-j.start)/60000,nodes:j.nodes,where:hostlist(j.nodelist),mine:1}));
+  return rows.sort((a,b)=>(a.st===b.st?a.id-b.id:a.st==='PD'?-1:1)) }
+function squeueCmd(args){ const o={}; for(let i=0;i<args.length;i++){ const a=args[i]; if(a==='--me')o.u=USER; else if(a==='-u'||a==='--user')o.u=args[++i]; else if(a.startsWith('--user='))o.u=a.slice(7); else if(a==='-j'||a==='--jobs')o.j=args[++i]; else if(a.startsWith('--jobs='))o.j=a.slice(7); else if(a==='-p'||a==='--partition')o.p=args[++i]; else if(a==='-t'||a==='--states')o.t=(args[++i]||'').toUpperCase(); else if(a==='-l'||a==='--long'){} else {print(`squeue: unrecognized option '${a}'`,'err');print('Try: squeue --me   or   squeue -u mudy','tip');return 1} }
+  let rows=allQueue(); if(o.u)rows=rows.filter(r=>r.user===o.u); if(o.j){ const ids=o.j.split(',').map(Number); rows=rows.filter(r=>ids.includes(r.id)); if(!rows.length){print('slurm_load_jobs error: Invalid job id specified','err');return 1} }
+  if(o.p)rows=rows.filter(r=>r.part===o.p); if(o.t){ const m={PENDING:'PD',PD:'PD',RUNNING:'R',R:'R'}; rows=rows.filter(r=>r.st===m[o.t]) }
+  print('             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)');
+  rows.forEach(r=>print(String(r.id).padStart(18)+' '+r.part.padStart(9)+' '+r.name.slice(0,8).padStart(8)+' '+r.user.slice(0,8).padStart(8)+' '+r.st.padStart(2)+' '+fmtElapsed(r.time).padStart(10)+' '+String(r.nodes).padStart(6)+' '+r.where, r.mine?'tip':''));
+  return 0 }
+function sinfoCmd(args){ let p=null, perNode=false; for(let i=0;i<args.length;i++){ if(args[i]==='-p'||args[i]==='--partition')p=args[++i]; else if(args[i].startsWith('--partition='))p=args[i].slice(12); else if(args[i]==='-N'||args[i]==='--Node')perNode=true; else if(args[i]==='-l'||args[i]==='--long'){} else {print(`sinfo: unrecognized option '${args[i]}'`,'err');return 1} }
+  const parts=PARTS.filter(x=>!p||x.name===p); if(!parts.length){print(`sinfo: error: Partition "${p}" does not exist`,'err');return 1}
+  if(perNode){ print('NODELIST   NODES PARTITION STATE'); parts.forEach(pp=>nodes.filter(n=>n.part===pp.name).forEach(n=>print(n.name.padEnd(10)+'     1 '+(pp.name+(pp.def?'*':'')).padEnd(9)+' '+nodeState(n)))); return 0 }
+  print('PARTITION AVAIL  TIMELIMIT  NODES  STATE NODELIST');
+  parts.forEach(pp=>{ ['mix','alloc','idle','drain','down'].forEach(st=>{ const ns=nodes.filter(n=>n.part===pp.name&&nodeState(n)===st); if(!ns.length)return;
+    print((pp.name+(pp.def?'*':'')).padEnd(9)+'    up '+(pp.max>=1440?fmtHMS(pp.max):fmtElapsed(pp.max)).padStart(10)+' '+String(ns.length).padStart(6)+' '+st.padStart(6)+' '+hostlist(ns.map(n=>n.name))) }) });
+  return 0 }
+function findUserJob(id){ return userJobs.find(j=>j.id===+id) }
+function scancelCmd(args){ if(!args.length){print('scancel: error: No job identification provided','err');return 1}
+  let ids=[]; if(args[0]==='-u'||args[0]==='--me'){ const u=args[0]==='--me'?USER:args[1]; if(u!==USER){print(`scancel: error: Kill job error: Access/permission denied for user ${u}`,'err');return 1} ids=userJobs.filter(j=>j.state==='PENDING'||j.state==='RUNNING').map(j=>j.id) }
+  else ids=args.filter(a=>!a.startsWith('-'));
+  let code=0; const now=simMs();
+  ids.forEach(id=>{ const j=findUserJob(id);
+    if(!j){ if(bgRun.some(b=>b.id===+id)||bgPend.some(b=>b.id===+id)){print(`scancel: error: Kill job error on job id ${id}: Access/permission denied`,'err')} else print(`scancel: error: Invalid job id ${id}`,'err'); code=1; return }
+    if(j.state!=='PENDING'&&j.state!=='RUNNING'){print(`scancel: error: Kill job error on job id ${id}: Job/step already completing or completed`,'err');code=1;return}
+    j.exit='0:15'; if(j.interactive&&shell.ijob===j){ endInteractive(true,'CANCELLED'); return }
+    if(j.state==='PENDING'){ j.state='CANCELLED'; j.end=now; emit({type:'job',job:j}) }
+    else finishJob(j,'CANCELLED',now,`slurmstepd: error: *** JOB ${j.id} ON ${j.nodelist[0]} CANCELLED AT ${isoStr(now)} ***`) });
+  renderSide(); return code }
+const SACCT_W={JobID:12,JobName:10,Partition:10,Account:10,AllocCPUS:10,State:10,ExitCode:8,Elapsed:10,Start:19,End:19,Submit:19,NodeList:15,MaxRSS:10,ReqMem:10,Timelimit:10,NCPUS:10,User:9,AllocTRES:30};
+function sacctCmd(args){ let fields=['JobID','JobName','Partition','Account','AllocCPUS','State','ExitCode'], jf=null, noSteps=false;
+  for(let i=0;i<args.length;i++){ const a=args[i]; if(a==='-j'||a==='--jobs')jf=args[++i]; else if(a.startsWith('--jobs='))jf=a.slice(7); else if(a==='-X'||a==='--allocations')noSteps=true;
+    else if(a.startsWith('--format=')||a.startsWith('-o')||a==='--format'){ const v=a==='--format'?args[++i]:a.startsWith('-o')?(a.length>2?a.slice(2):args[++i]):a.slice(9); fields=v.split(',').map(f=>{const k=Object.keys(SACCT_W).find(x=>x.toLowerCase()===f.split('%')[0].toLowerCase()); return k||f}) }
+    else if(a==='-S'||a==='--starttime'||a==='-u'){i++} else if(a.startsWith('--starttime')||a==='--me'){} }
+  let jobs=userJobs; if(jf){ const ids=jf.split(',').map(Number); jobs=jobs.filter(j=>ids.includes(j.id)) }
+  const w=f=>SACCT_W[f]||12; const cell=(f,v)=>{ v=String(v); const W=w(f); if(v.length>W)v=v.slice(0,W-1)+'+'; return f==='JobID'?v.padEnd(W):v.padStart(W) };
+  print(fields.map(f=>cell(f,f)).join(' ')); print(fields.map(f=>'-'.repeat(w(f))).join(' '));
+  const now=simMs();
+  const val=(j,f,step)=>{ const el=j.start?((j.end||now)-j.start)/60000:0; const cpus=j.cpn*j.nodes;
+    switch(f){ case 'JobID':return step?j.id+'.'+step:j.id; case 'JobName':return step||j.name; case 'Partition':return step?'':j.part; case 'Account':return 'practice'; case 'User':return step?'':USER;
+      case 'AllocCPUS':case 'NCPUS':return j.state==='PENDING'||(j.state==='CANCELLED'&&!j.start)?0:cpus; case 'State':return j.state==='CANCELLED'?(step?'CANCELLED':'CANCELLED by '+UID):step&&j.state==='TIMEOUT'?'CANCELLED':j.state;
+      case 'ExitCode':return j.exit||'0:0'; case 'Elapsed':return fmtHMS(el); case 'Start':return j.start?isoStr(j.start):'Unknown'; case 'End':return j.end?isoStr(j.end):'Unknown'; case 'Submit':return isoStr(j.submit);
+      case 'NodeList':return j.nodelist.length?hostlist(j.nodelist):'None assigned'; case 'MaxRSS':return step==='batch'&&j.res&&j.end?Math.round(j.res.memGB*1024*1024)+'K':''; case 'ReqMem':return step?'':fmtMem(j.mem);
+      case 'Timelimit':return step?'':fmtHMS(j.limit); case 'AllocTRES':return step?'':`billing=${cpus},cpu=${cpus},mem=${fmtMem(j.mem)},node=${j.nodes}`+(j.gpus?`,gres/gpu=${j.gpus}`:''); default:return '' } };
+  jobs.forEach(j=>{ print(fields.map(f=>cell(f,val(j,f))).join(' '), j.state==='FAILED'||j.state==='TIMEOUT'?'err':'');
+    if(!noSteps&&j.start&&!j.interactive){ print(fields.map(f=>cell(f,val(j,f,'batch'))).join(' ')); print(fields.map(f=>cell(f,val(j,f,'extern'))).join(' ')) } });
+  return 0 }
+function scontrolCmd(args){ if(args[0]!=='show'||!args[1]){print('Practice mode supports: scontrol show job <id>  |  scontrol show node <name>  |  scontrol show partition','err');return 1}
+  if(args[1]==='job'){ const j=findUserJob(args[2]); if(!j){ const b=bgRun.find(x=>x.id===+args[2])||bgPend.find(x=>x.id===+args[2]); if(b){print(`JobId=${b.id} JobName=${b.name}`);print(`   UserId=${b.user} JobState=${b.state} Partition=${b.part}`);print('   (Other users\' job details are hidden in practice mode.)','dimc');return 0} print('slurm_load_jobs error: Invalid job id specified','err');return 1}
+    const now=simMs(), el=j.start?((j.end||now)-j.start)/60000:0;
+    [`JobId=${j.id} JobName=${j.name}`,`   UserId=${USER}(${UID}) GroupId=${USER}(${UID}) MCS_label=N/A`,`   Priority=${10000+(j.id%997)} Nice=0 Account=practice QOS=normal`,
+     `   JobState=${j.state} Reason=${j.state==='PENDING'?j.reason:'None'} Dependency=(null)`,`   Requeue=1 Restarts=0 BatchFlag=${j.interactive?0:1} Reboot=0 ExitCode=${j.exit||'0:0'}`,
+     `   RunTime=${fmtHMS(el)} TimeLimit=${fmtHMS(j.limit)} TimeMin=N/A`,`   SubmitTime=${isoStr(j.submit)} EligibleTime=${isoStr(j.submit)}`,
+     `   StartTime=${j.start?isoStr(j.start):'Unknown'} EndTime=${j.end?isoStr(j.end):j.start?isoStr(j.start+j.limit*60000):'Unknown'} Deadline=N/A`,
+     `   Partition=${j.part} AllocNode:Sid=${LOGIN}:${4000+j.id%5000}`,`   NodeList=${j.nodelist.length?hostlist(j.nodelist):'(null)'}`,
+     `   NumNodes=${j.nodes} NumCPUs=${j.cpn*j.nodes} NumTasks=${j.ntasks} CPUs/Task=${j.cpt} ReqB:S:C:T=0:0:*:*`,
+     `   TRES=cpu=${j.cpn*j.nodes},mem=${fmtMem(j.mem)},node=${j.nodes},billing=${j.cpn*j.nodes}${j.gpus?',gres/gpu='+j.gpus:''}`,`   MinMemoryNode=${fmtMem(j.mem)}`,
+     `   Command=${j.interactive?'bash':j.scriptPath}`,`   WorkDir=${j.workdir}`,`   StdErr=${j.err||j.out||''}`,`   StdOut=${j.out||''}`].forEach(l=>print(l)); return 0 }
+  if(args[1]==='node'){ const n=nodeByName(args[2]); if(!n){print(`Node ${args[2]} not found`,'err');return 1}
+    [`NodeName=${n.name} Arch=x86_64 CoresPerSocket=${n.cpus/2}`,`   CPUAlloc=${n.used} CPUTot=${n.cpus} CPULoad=${(n.used*0.93).toFixed(2)}`,`   Gres=${n.gpus?'gpu:v100:'+n.gpus:'(null)'}`,`   RealMemory=${n.mem} AllocMem=${Math.round(n.used/n.cpus*n.mem)}`,
+     `   State=${nodeState(n).toUpperCase()}${n.admin==='drain'?' Reason=disk errors [admin@2026-10-19]':n.admin==='down'?' Reason=Not responding':''}`,`   Partitions=${n.part}`].forEach(l=>print(l)); return 0 }
+  if(args[1]==='partition'){ PARTS.forEach(p=>{print(`PartitionName=${p.name}`);print(`   Default=${p.def?'YES':'NO'} MaxTime=${fmtHMS(p.max)} DefaultTime=${fmtHMS(p.deflim)} State=UP`);print(`   TotalNodes=${p.to-p.from+1} CPUs/node=${p.cpus} Mem/node=${fmtMem(p.mem)}${p.gpus?' GPUs/node='+p.gpus:''}`);print('')}); return 0 }
+  print('Practice mode supports: scontrol show job | node | partition','err'); return 1 }
+function seffCmd(args){ const j=findUserJob(args[0]); if(!j){print(args[0]?`Job not found.`:'Usage: seff <jobid>','err');return 1}
+  if(j.state==='PENDING'){print('Efficiency not available for jobs in the PENDING state.');return 0}
+  const now=simMs(), el=((j.end||now)-j.start)/60000, cores=j.cpn*j.nodes; const eff=j.res?j.res.cpuEff:0.3, memU=j.res?j.res.memGB:0.5;
+  [`Job ID: ${j.id}`,'Cluster: practice',`User/Group: ${USER}/${USER}`,`State: ${j.state} (exit code ${(j.exit||'0:0').split(':')[0]})`,`Nodes: ${j.nodes}`,`Cores per node: ${j.cpn}`,
+   `CPU Utilized: ${fmtHMS(el*cores*eff)}`,`CPU Efficiency: ${(eff*100).toFixed(2)}% of ${fmtHMS(el*cores)} core-walltime`,`Job Wall-clock time: ${fmtHMS(el)}`,
+   `Memory Utilized: ${memU>=1?memU.toFixed(2)+' GB':(memU*1024).toFixed(2)+' MB'}`,`Memory Efficiency: ${(memU*1024/j.mem*100).toFixed(2)}% of ${(j.mem/1024).toFixed(2)} GB`].forEach(l=>print(l));
+  if(j.state==='RUNNING')print('WARNING: Efficiency statistics may be misleading for RUNNING jobs.','tip');
+  else { const tips=[]; if(eff<0.5&&cores>1)tips.push(`CPU efficiency is low. Next time ask for fewer cores (or make the program use all ${cores}).`); if(memU*1024/j.mem<0.3)tips.push(`You used ${(memU*1024/j.mem*100).toFixed(0)}% of the memory you asked for. A smaller --mem may start sooner.`); if(el<j.limit*0.25)tips.push(`The job used ${Math.round(el/j.limit*100)}% of its time limit. A shorter --time can help it start sooner.`); tips.forEach(t=>print('Tip: '+t,'tip')) }
+  return 0 }
+function srunCmd(args){ if(shell.ijob){print('srun: you are already inside an interactive job. Type exit first.','err');return 1}
+  const opts={}; const rest=parseOpts(args,opts); const pty=!!opts.pty; if(pty&&rest[0]==='bash')rest.shift();
+  const part=partOf(opts.partition||'compute'); if(!part){print(`srun: error: invalid partition specified: ${opts.partition}`,'err');return 1}
+  const lim=opts.time!=null?parseTime(opts.time):part.deflim; if(isNaN(lim)||lim>part.max){print('srun: error: Unable to allocate resources: Requested time limit is invalid (missing or exceeds some limit)','err');return 1}
+  const cpt=parseInt(opts['cpus-per-task']||1); let gpus=0; if(opts.gres){const m=String(opts.gres).match(/gpu(?::[a-z0-9]+)?:(\d+)/);gpus=m?+m[1]:1}
+  if(cpt>part.cpus||(gpus&&!part.gpus)){print('srun: error: Unable to allocate resources: Requested node configuration is not available','err');return 1}
+  const id=nextId++; const job={id,name:pty||!rest.length?'bash':rest[0],user:USER,part:part.name,nodes:1,ntasks:1,cpt,cpn:cpt,mem:opts.mem?parseMem(opts.mem):cpt*4096,limit:lim,gpus,state:'PENDING',reason:'Priority',submit:simMs(),pendUntil:0,nodelist:[],workdir:shell.cwd,script:'',scriptPath:'',out:null,err:null,modules:shell.modules.slice(),interactive:true};
+  print(`srun: job ${id} queued and waiting for resources`); const nl=allocate(job);
+  if(!nl){ print(`srun: error: Unable to allocate resources: no free nodes in ${part.name} right now. Try -p debug.`,'err'); return 1 }
+  job.nodelist=nl; job.start=simMs(); job.state='RUNNING'; job.reason='None'; userJobs.push(job); print(`srun: job ${id} has been allocated resources`);
+  if(pty||!rest.length){ shell.ijob=job; shell.host=nl[0]; renderPrompt(); print(`(practice: you are now on compute node ${nl[0]}. Heavy programs are allowed here. Type exit to leave.)`,'tip'); renderSide(); return 0 }
+  // one-off command
+  const ctx=newCtx(job,shell.cwd,shell.modules.slice()); const code=evalLine(rest.join(' '),ctx,0); ctx.lines.forEach(l=>print(l.text,l.err?'err':'')); applyFiles(ctx);
+  job.res={lines:[],runtime:ctx.t,exit:code,files:[],dirs:[],cpuEff:ctx.cpuEff,memGB:ctx.memGB}; job.exit=code+':0'; job.end=job.start+Math.max(ctx.t,0.05)*60000; job.state=code===0?'COMPLETED':'FAILED'; release(job); renderSide(); return code }
+function endInteractive(silent,state){ const j=shell.ijob; if(!j)return; if(!silent)print('exit'); j.end=simMs(); j.state=state||'COMPLETED'; j.exit=j.exit||'0:0'; j.res={lines:[],runtime:(j.end-j.start)/60000,exit:0,files:[],dirs:[],cpuEff:0.04,memGB:0.2}; release(j);
+  shell.ijob=null; shell.host=LOGIN; shell.cwd=shell.cwd; renderPrompt(); emit({type:'job',job:j}); renderSide(); save() }
+
+/* ---------- editor ---------- */
+let edPath=null, edOrig='', edConfirm=false;
+const edEl=$('#editor'), edText=$('#edText');
+function openEditor(path,text){ edPath=path; edOrig=text; edText.value=text; edConfirm=false; $('#edName').textContent=path.replace(HOME,'~'); $('#edMod').textContent=''; $('#edMsg').textContent=getN(path)?`[ Read ${text.split('\n').length} lines ]`:'[ New File ]';
+  edEl.hidden=false; setTimeout(()=>edText.focus(),0); }
+function edSave(){ if(readOnly(edPath)||!canWrite(edPath)){ $('#edMsg').textContent='[ Error writing '+edPath+': Permission denied ]'; return false }
+  writeFile(edPath,edText.value); edOrig=edText.value; $('#edMod').textContent=''; $('#edMsg').textContent=`[ Wrote ${edText.value.split('\n').length} lines ]`; emit({type:'save',path:edPath,text:edText.value}); save(); return true }
+function edExit(force){ if(!force&&edText.value!==edOrig&&!edConfirm){ edConfirm=true; $('#edMsg').innerHTML=''; const m=$('#edMsg');
+    m.append('Save modified buffer?  '); const y=document.createElement('button');y.type='button';y.textContent='Y  Yes';y.onclick=()=>{if(edSave())edExit(true)}; const n=document.createElement('button');n.type='button';n.textContent='N  No';n.onclick=()=>edExit(true); const c=document.createElement('button');c.type='button';c.textContent='Cancel';c.onclick=()=>{edConfirm=false;m.textContent='';edText.focus()};
+    m.append(y,' ',n,' ',c); return }
+  edEl.hidden=true; edPath=null; cmdEl.focus(); scrollEnd() }
+edText.addEventListener('input',()=>{$('#edMod').textContent=edText.value!==edOrig?'Modified':''});
+edText.addEventListener('keydown',e=>{ if(e.ctrlKey&&(e.key==='s'||e.key==='o')){e.preventDefault();edSave()} else if(e.ctrlKey&&e.key==='x'){e.preventDefault();edExit()} else if(edConfirm&&!e.ctrlKey&&(e.key==='y'||e.key==='Y')){e.preventDefault();if(edSave())edExit(true)} else if(edConfirm&&(e.key==='n'||e.key==='N')){e.preventDefault();edExit(true)}
+  else if(e.key==='Tab'){e.preventDefault(); const s=edText.selectionStart; edText.setRangeText('    ',s,edText.selectionEnd,'end'); edText.dispatchEvent(new Event('input'))} });
+$('#edSave').onclick=()=>{edSave();edText.focus()}; $('#edExit').onclick=()=>edExit();
+
+/* ---------- input ---------- */
+cmdEl.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){ const v=cmdEl.value; cmdEl.value=''; execLine(v); scrollEnd() }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); if(shell.hidx>0){shell.hidx--;cmdEl.value=shell.history[shell.hidx]||''} }
+  else if(e.key==='ArrowDown'){ e.preventDefault(); if(shell.hidx<shell.history.length){shell.hidx++;cmdEl.value=shell.history[shell.hidx]||''} }
+  else if(e.key==='Tab'){ e.preventDefault(); complete() }
+  else if(e.ctrlKey&&e.key==='l'){ e.preventDefault(); outEl.innerHTML='' }
+  else if(e.ctrlKey&&e.key==='c'){ e.preventDefault(); print([...promptParts(),[cmdEl.value+'^C','']]); cmdEl.value=''; scrollEnd() } });
+termEl.addEventListener('click',()=>{ if(!window.getSelection().toString())cmdEl.focus() });
+function complete(){ const v=cmdEl.value; const m=v.match(/(\S*)$/); const word=m[1]; const isFirst=!v.slice(0,v.length-word.length).trim();
+  let cands=[];
+  if(isFirst&&!word.includes('/')) cands=Object.keys(CMDS).concat(HEAVY).filter(c=>c.startsWith(word));
+  else { const slash=word.lastIndexOf('/'); const dirPart=slash>=0?word.slice(0,slash+1):''; const base=word.slice(slash+1); const d=getN(resolve(dirPart||'.',shell.cwd));
+    if(d&&d.type==='d') cands=Object.keys(d.c).filter(k=>k.startsWith(base)).map(k=>dirPart+k+(d.c[k].type==='d'?'/':'')) }
+  if(cands.length===1){ cmdEl.value=v.slice(0,v.length-word.length)+cands[0]+(cands[0].endsWith('/')?'':' ') }
+  else if(cands.length>1){ let pre=cands[0]; cands.forEach(c=>{while(!c.startsWith(pre))pre=pre.slice(0,-1)}); if(pre.length>word.length)cmdEl.value=v.slice(0,v.length-word.length)+pre; else { print([...promptParts(),[v,'']]); print(cands.map(c=>c.split('/').filter(Boolean).pop()+(c.endsWith('/')?'/':'')).join('  ')); scrollEnd() } } }
+
+/* ---------- guide ---------- */
+const jobIs=(id,st)=>{const j=findUserJob(id);return j&&(st?st.includes(j.state):['COMPLETED','FAILED','TIMEOUT','CANCELLED'].includes(j.state))};
+const fileIs=(e,name)=>e.args.some(a=>a.endsWith(name));
+const LESSONS=[
+ {title:'Find your way around',intro:'You have just logged in to the login node. This is the shared front door of the cluster, where you look at files and submit work.',steps:[
+   {text:'Print the folder you are in.',cmd:'pwd',ok:e=>e.cmd==='pwd'},
+   {text:'List the files in it.',cmd:'ls',ok:e=>e.cmd==='ls'&&e.ok},
+   {text:'Read the welcome notes.',cmd:'cat README.txt',ok:e=>['cat','less','more'].includes(e.cmd)&&fileIs(e,'README.txt')&&e.ok},
+   {text:'Move into the jobs folder.',cmd:'cd jobs',ok:e=>e.cmd==='cd'&&e.cwd===HOME+'/jobs'},
+   {text:'List the job scripts with details. Green names are scripts.',cmd:'ls -l',ok:e=>e.cmd==='ls'&&e.cwd===HOME+'/jobs'}]},
+ {title:'Load software with modules',intro:'Clusters install hundreds of programs. None are active until you load them with the module command.',steps:[
+   {text:'See which software is installed.',cmd:'module avail',ok:e=>(e.cmd==='module'||e.cmd==='ml')&&/^av/.test(e.args[0]||'')},
+   {text:'Try to run Foldseek before loading it. You will get "command not found".',cmd:'foldseek version',ok:e=>e.cmd==='foldseek'},
+   {text:'Load Foldseek.',cmd:'module load foldseek',ok:e=>hasMod(shell.modules,'foldseek')&&(e.cmd==='module'||e.cmd==='ml')},
+   {text:'Check what is loaded now. Running foldseek version works too.',cmd:'module list',ok:e=>(e.cmd==='module'&&e.args[0]==='list')||(e.cmd==='ml'&&!e.args.length)}]},
+ {title:'Look at the cluster',intro:'Before you ask for resources, see what exists and how busy it is. The Cluster tab on the right shows the same thing as a picture.',steps:[
+   {text:'See the partitions (groups of nodes) and their states.',cmd:'sinfo',ok:e=>e.cmd==='sinfo'&&e.ok,why:'mix = partly used, alloc = full, idle = free, drain/down = out of service.'},
+   {text:'See every job in the queue.',cmd:'squeue',ok:e=>e.cmd==='squeue'&&e.ok,why:'ST: PD means pending (waiting), R means running.'},
+   {text:'Show only your own jobs. It is empty for now.',cmd:'squeue --me',ok:e=>e.cmd==='squeue'&&(e.args.includes('--me')||e.args.includes(USER))}]},
+ {title:'Submit your first job',intro:'A job script is a normal shell script with #SBATCH lines at the top that ask for resources.',steps:[
+   {text:'Make sure you are in the jobs folder, then read hello.sh.',cmd:'cat hello.sh',ok:e=>e.cmd==='cat'&&fileIs(e,'hello.sh')&&e.ok},
+   {text:'Submit it to the scheduler.',cmd:'sbatch hello.sh',ok:e=>e.type==='submit'&&e.job.scriptPath.endsWith('hello.sh'),track:true},
+   {text:'Check on it. Run this a few times and watch PD turn into R.',cmd:'squeue --me',ok:e=>e.cmd==='squeue'},
+   {text:'Wait until it finishes (about 10 seconds), then list the folder. A new slurm-{job}.out file appears.',cmd:'ls',ok:e=>e.cmd==='ls'&&jobIs(tut.vars.job)},
+   {text:'Read the job output.',cmd:'cat slurm-{job}.out',ok:e=>['cat','less','more','tail','head'].includes(e.cmd)&&fileIs(e,`slurm-${tut.vars.job}.out`)&&e.ok}]},
+ {title:'Run a Foldseek search',intro:'Now a realistic job: search a cytidine deaminase that inactivates gemcitabine against the ESM Metagenomic Atlas.',steps:[
+   {text:'Open the Foldseek job script in the editor.',cmd:'nano foldseek_search.sh',ok:e=>['nano','vim','vi','edit'].includes(e.cmd)&&fileIs(e,'foldseek_search.sh')},
+   {text:'Change --cpus-per-task=16 to 32 so it runs faster. Save with Ctrl+S, then exit with Ctrl+X.',ok:e=>e.type==='save'&&e.path.endsWith('foldseek_search.sh'),why:'More cores make Foldseek faster because the script passes $SLURM_CPUS_PER_TASK to --threads.'},
+   {text:'Submit it.',cmd:'sbatch foldseek_search.sh',ok:e=>e.type==='submit'&&e.job.scriptPath.endsWith('foldseek_search.sh'),track:true},
+   {text:'Look at the full details Slurm keeps for your job.',cmd:'scontrol show job {job}',ok:e=>e.cmd==='scontrol'&&e.args.includes(String(tut.vars.job))},
+   {text:'Peek at the log while it runs. Repeat to see it grow.',cmd:'tail slurm-{job}.out',ok:e=>['tail','cat','less','head'].includes(e.cmd)&&fileIs(e,`slurm-${tut.vars.job}.out`)&&e.ok},
+   {text:'When the job has finished, look at the top structural hits.',cmd:'head ~/results/cdd_hits.m8',ok:e=>['head','cat','less','tail','more'].includes(e.cmd)&&fileIs(e,'cdd_hits.m8')&&e.ok,why:'Columns: query, target, identity, alignment length, mismatches, gaps, query start/end, target start/end, E-value, bit score.'},
+   {text:'Check how well the job used what it asked for.',cmd:'seff {job}',ok:e=>e.cmd==='seff'&&e.args.includes(String(tut.vars.job))&&jobIs(tut.vars.job)}]},
+ {title:'Fix a failed job',intro:'Jobs fail. The skill is reading the evidence: the job state, the exit code, and the log.',steps:[
+   {text:'Submit the broken script.',cmd:'sbatch broken.sh',ok:e=>e.type==='submit'&&e.job.scriptPath.endsWith('broken.sh'),track:true},
+   {text:'Wait for it to end, then check its state and exit code.',cmd:'sacct',ok:e=>e.cmd==='sacct'&&jobIs(tut.vars.job)},
+   {text:'Read the log to find out why.',cmd:'cat slurm-{job}.out',ok:e=>['cat','less','tail','more','head'].includes(e.cmd)&&fileIs(e,`slurm-${tut.vars.job}.out`)&&e.ok,why:'Exit code 127 always means "command not found".'},
+   {text:'Open broken.sh and add the line  module load foldseek  under module purge. Save and exit.',cmd:'nano broken.sh',ok:e=>e.type==='save'&&e.path.endsWith('broken.sh')&&/^\s*(module load|ml)\s+foldseek/m.test(e.text)},
+   {text:'Submit the fixed script.',cmd:'sbatch broken.sh',ok:e=>e.type==='submit'&&e.job.scriptPath.endsWith('broken.sh'),track:true},
+   {text:'Confirm it completed this time. With 8 cores the search takes about 45 seconds, so run sacct again until it says COMPLETED.',cmd:'sacct -j {job}',ok:e=>e.cmd==='sacct'&&jobIs(tut.vars.job,['COMPLETED'])}]},
+ {title:'Cancel and work interactively',intro:'Two last everyday skills: stopping a job you no longer want, and getting a shell on a compute node to test things.',steps:[
+   {text:'Submit a long job.',cmd:'sbatch long_job.sh',ok:e=>e.type==='submit'&&e.job.scriptPath.endsWith('long_job.sh'),track:true},
+   {text:'Cancel it.',cmd:'scancel {job}',ok:e=>e.cmd==='scancel'&&jobIs(tut.vars.job,['CANCELLED'])},
+   {text:'Ask for an interactive shell on a debug node for 30 minutes.',cmd:'srun -p debug --time=00:30:00 --pty bash',ok:e=>e.cmd==='srun'&&!!shell.ijob},
+   {text:'Check which machine you are on now.',cmd:'hostname',ok:e=>e.cmd==='hostname'&&e.host!==LOGIN},
+   {text:'Leave the compute node and go back to the login node.',cmd:'exit',ok:e=>(e.cmd==='exit'||e.cmd==='logout')&&e.host===LOGIN}]}
+];
+let tut={l:0,s:0,vars:{},done:{}};
+function tutEvent(ev){ const L=LESSONS[tut.l]; if(!L)return; const st=L.steps[tut.s]; if(!st)return;
+  if(ev.type==='submit'&&st.track){ /* set before ok check */ }
+  if(st.ok(ev)){ if(ev.type==='submit'&&st.track)tut.vars.job=ev.job.id; tut.s++; if(tut.s>=L.steps.length){ tut.done[tut.l]=true; if(tut.l<LESSONS.length-1){ tut.justDone=L.title; tut.l++; tut.s=0 } } renderGuide(); save() } }
+function fillVars(s){ return s.replace(/\{job\}/g,tut.vars.job||'<jobid>') }
+function renderGuide(){ const pane=$('#pane-guide'); pane.innerHTML=''; const L=LESSONS[tut.l];
+  const top=document.createElement('div'); top.style.cssText='display:flex;flex-direction:column;gap:8px';
+  top.innerHTML=`<h3>Lesson ${tut.l+1} of ${LESSONS.length}</h3>`; const row=document.createElement('div'); row.className='lessons';
+  LESSONS.forEach((x,i)=>{ const b=document.createElement('button'); b.type='button'; b.textContent=i+1; b.title=x.title; b.className=(tut.done[i]?'done ':'')+(i===tut.l?'cur':''); b.onclick=()=>{tut.l=i;tut.s=tut.done[i]?x.steps.length:0;renderGuide();save()}; row.appendChild(b) });
+  top.appendChild(row); pane.appendChild(top);
+  if(tut.justDone&&tut.s===0){ const d=document.createElement('div'); d.className='done-card'; d.innerHTML='<p><b>✓ Lesson complete:</b> '+esc(tut.justDone)+'. On to the next one.</p>'; pane.appendChild(d) } else tut.justDone=null;
+  const h=document.createElement('h2'); h.textContent=L.title; pane.appendChild(h);
+  const p=document.createElement('p'); p.className='note'; p.textContent=L.intro; pane.appendChild(p);
+  const ol=document.createElement('ol'); ol.className='steps';
+  L.steps.forEach((st,i)=>{ const li=document.createElement('li'); li.className=i<tut.s?'done':i===tut.s?'cur':''; const div=document.createElement('div');
+    const t=document.createElement('div'); t.textContent=fillVars(st.text); div.appendChild(t);
+    if(i===tut.s){ if(st.cmd){ const c=document.createElement('button'); c.type='button'; c.className='chip'; c.title='Put this command in the terminal'; c.textContent='$ '+fillVars(st.cmd); c.onclick=()=>{cmdEl.value=fillVars(st.cmd);cmdEl.focus()}; div.appendChild(c) }
+      if(st.why){ const w=document.createElement('div'); w.className='why'; w.textContent=st.why; div.appendChild(w) } }
+    li.appendChild(div); ol.appendChild(li) });
+  pane.appendChild(ol);
+  if(tut.vars.job&&tut.s<L.steps.length){ const j=findUserJob(tut.vars.job); if(j){ const tr=document.createElement('div'); tr.className='track'; tr.id='trackLine'; pane.appendChild(tr); updateTrack() } }
+  if(tut.s>=L.steps.length){ const d=document.createElement('div'); d.className='done-card';
+    d.innerHTML=tut.l<LESSONS.length-1?`<p><b>Lesson complete.</b> Next: ${LESSONS[tut.l+1].title}.</p>`:`<p><b>All lessons complete.</b> You have used the full Slurm workflow. Try writing your own script with nano myjob.sh, or ask for a GPU with gpu_test.sh.</p>`;
+    if(tut.l<LESSONS.length-1){ const b=document.createElement('button'); b.type='button'; b.textContent='Start next lesson'; b.style.marginTop='8px'; b.onclick=()=>{tut.l++;tut.s=0;renderGuide();save()}; d.appendChild(b) }
+    pane.appendChild(d) }
+  const nav=document.createElement('div'); nav.className='navrow';
+  const sk=document.createElement('button'); sk.type='button'; sk.textContent='Skip this step'; sk.disabled=tut.s>=L.steps.length; sk.onclick=()=>{ tut.s++; if(tut.s>=L.steps.length)tut.done[tut.l]=true; renderGuide(); save() };
+  const rs=document.createElement('button'); rs.type='button'; rs.textContent='Restart lesson'; rs.onclick=()=>{tut.s=0;renderGuide();save()};
+  nav.append(rs,sk); pane.appendChild(nav);
+  const n=document.createElement('p'); n.className='note'; n.textContent='Practice notes: the real KAU cluster may use different partition names, limits and module versions. Check its user guide before your first real job.'; pane.appendChild(n) }
+function updateTrack(){ const tr=$('#trackLine'); if(!tr)return; const j=findUserJob(tut.vars.job); if(!j)return; const el=j.start?((j.end||simMs())-j.start)/60000:0;
+  tr.textContent=`Job ${j.id} (${j.name}): ${j.state}${j.state==='RUNNING'?' for '+fmtElapsed(el):''}${j.state==='PENDING'?' · reason '+j.reason:''}` }
+
+/* ---------- side panels ---------- */
+let lastSide=0;
+function renderSideThrottled(force){ const now=Date.now(); if(force||now-lastSide>1000){ lastSide=now; renderSide() } }
+function renderSide(){ updateTrack(); if(!$('#pane-cluster').hidden)renderCluster() }
+function renderCluster(){ const pane=$('#pane-cluster'); const mineNodes=new Set(userJobs.filter(j=>j.state==='RUNNING').flatMap(j=>j.nodelist));
+  let html='<div class="legend"><span><i style="background:var(--n-idle)"></i>idle</span><span><i style="background:linear-gradient(135deg,var(--n-mix) 50%,var(--n-idle) 50%)"></i>mix</span><span><i style="background:var(--n-alloc)"></i>alloc</span><span><i style="background:var(--n-drain)"></i>drain</span><span><i style="background:var(--n-down)"></i>down</span><span><i style="outline:2px solid var(--accent);outline-offset:-1px;background:transparent"></i>your job</span></div>';
+  PARTS.forEach(p=>{ const ns=nodes.filter(n=>n.part===p.name); const used=ns.reduce((a,n)=>a+n.used,0), tot=ns.filter(n=>!n.admin).reduce((a,n)=>a+n.cpus,0);
+    html+=`<div class="part"><div class="hd"><b>${p.name}${p.def?' (default)':''}</b><span>${ns.length} nodes · ${used}/${tot} cores busy · max ${p.max>=1440?p.max/1440+' days':p.max+' min'}</span></div><div class="grid">`+
+      ns.map(n=>`<div class="node ${nodeState(n)}${mineNodes.has(n.name)?' mine':''}" title="${n.name}: ${nodeState(n)}, ${n.used}/${n.cpus} cores${n.gpus?', '+n.gused+'/'+n.gpus+' GPUs':''}"></div>`).join('')+'</div></div>' });
+  const mine=userJobs.slice(-8).reverse(); const now=simMs();
+  html+='<h3>Your jobs</h3>';
+  if(!mine.length)html+='<p class="empty">No jobs yet. Submit one with <code>sbatch hello.sh</code> from the jobs folder.</p>';
+  else html+='<div class="tblwrap"><table><thead><tr><th>Job</th><th>Name</th><th>State</th><th>Time</th></tr></thead><tbody>'+mine.map(j=>{const el=j.start?((j.end||now)-j.start)/60000:0;return `<tr><td>${j.id}</td><td>${esc(j.name)}</td><td><span class="st ${j.state}">${j.state}</span></td><td>${fmtElapsed(el)}</td></tr>`}).join('')+'</tbody></table></div>';
+  const q=allQueue(); html+=`<p class="note">Queue right now: ${q.filter(r=>r.st==='R').length} running, ${q.filter(r=>r.st==='PD').length} pending, from ${new Set(q.map(r=>r.user)).size} users.</p>`;
+  pane.innerHTML=html }
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function renderCheat(){ const groups=[
+  ['Moving around',[['pwd','Show the current folder'],['ls -l','List files with details'],['cd jobs','Enter a folder (cd .. goes up, cd ~ goes home)'],['cat file','Print a file'],['tail -n 20 file','Last 20 lines of a file'],['nano file','Edit a file (Ctrl+S save, Ctrl+X exit)']]],
+  ['Software',[['module avail','List installed software'],['module load foldseek','Make a program available'],['module list','What is loaded'],['module purge','Unload everything']]],
+  ['Jobs',[['sbatch job.sh','Submit a job script'],['squeue --me','Your queued and running jobs'],['scancel <jobid>','Cancel a job'],['sacct','History of your jobs, with exit codes'],['seff <jobid>','How much CPU and memory a job used'],['scontrol show job <jobid>','Every detail about one job']]],
+  ['The cluster',[['sinfo','Partitions and node states'],['sinfo -N -p gpu','Each node in one partition'],['squeue','Everyone\'s jobs'],['srun -p debug --pty bash','Interactive shell on a compute node']]],
+  ['#SBATCH options',[['--job-name=name','Name shown in squeue'],['--partition=compute','Which group of nodes'],['--cpus-per-task=16','Cores for a multithreaded program'],['--mem=32G','Memory per node'],['--time=02:00:00','Wall-time limit (job is killed after it)'],['--gres=gpu:1','One GPU (gpu partition only)'],['--output=slurm-%j.out','Log file; %j becomes the job ID']]] ];
+  const pane=$('#pane-cheat'); pane.innerHTML='<p class="note">Click a command to put it in the terminal.</p>'+groups.map(([g,items])=>`<h3>${g}</h3><div class="cheat">`+items.map(([c,d])=>`<div><code data-c="${esc(c)}">${esc(c)}</code><span>${esc(d)}</span></div>`).join('')+'</div>').join('');
+  pane.querySelectorAll('code').forEach(c=>c.onclick=()=>{ if(c.dataset.c.startsWith('--'))return; cmdEl.value=c.dataset.c.replace(/ <jobid>| file$/,m=>m===' file'?' ':' '); cmdEl.focus() }) }
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b)); ['guide','cluster','cheat'].forEach(k=>$('#pane-'+k).hidden=b.id!=='tab-'+k); if(b.id==='tab-cluster')renderCluster() });
+
+/* ---------- persistence ---------- */
+const KEY='practice-cluster-v1';
+function save(){ try{ localStorage.setItem(KEY,JSON.stringify({fs,userJobs:userJobs.map(j=>({...j})),nextId,tut,history:shell.history.slice(-100),cwd:shell.cwd,sim:simMs(),seed})) }catch(e){} }
+function load(){ try{ const s=JSON.parse(localStorage.getItem(KEY)||'null'); if(!s)return false; fs=s.fs; userJobs=s.userJobs||[]; nextId=s.nextId; tut=s.tut||tut; shell.history=s.history||[]; shell.hidx=shell.history.length; shell.cwd=getN(s.cwd)?s.cwd:HOME; simBase=s.sim; realBase=Date.now(); seed=s.seed||seed; return true }catch(e){ return false } }
+function motd(){ const now=simMs(); [
+  `Last login: ${dateStr(now-38*60000*60/SPEED).replace(' +03','')} from 10.12.4.27`,
+  '=======================================================================',
+  '  PRACTICE CLUSTER   simulated Slurm environment for training',
+  '  Nothing here runs on real hardware. 1 second = 1 minute of cluster time.',
+  '-----------------------------------------------------------------------',
+  '  Login node : login01   (edit and submit here, do not compute here)',
+  '  Partitions : compute (default) · gpu · highmem · debug',
+  '  Storage    : /home/mudy 50 GB backed up · /scratch/mudy 2 TB, purged',
+  '  New here?  Follow the Guide on the right, or type  help',
+  '======================================================================='].forEach((l,i)=>print(l,i===0?'dimc':i===2?'tip':'')); }
+
+/* ---------- reset ---------- */
+let resetArm=null; $('#resetBtn').onclick=()=>{ const b=$('#resetBtn'); if(!resetArm){ b.textContent='Click again to erase all practice'; resetArm=setTimeout(()=>{resetArm=null;b.textContent='Reset practice'},3500); return }
+  clearTimeout(resetArm); resetArm=null; b.textContent='Reset practice'; try{localStorage.removeItem(KEY)}catch(e){}
+  fs=makeFS(); userJobs=[]; nextId=4815162; seed=20261021; tut={l:0,s:0,vars:{},done:{}}; Object.assign(shell,{cwd:HOME,host:LOGIN,modules:[],vars:{},ijob:null,history:[],hidx:0}); simBase=Date.now(); realBase=Date.now();
+  initBg(); outEl.innerHTML=''; motd(); renderPrompt(); renderGuide(); renderSide(); cmdEl.focus() };
+
+/* ---------- boot ---------- */
+const restored=load();
+initBg();
+// re-apply allocations for jobs that were running
+userJobs.forEach(j=>{ if(j.state==='RUNNING'){ if(j.interactive){ j.state='COMPLETED'; j.end=simMs(); j.exit='0:0'; return } j.nodelist.forEach(nm=>{const n=nodeByName(nm); if(n){n.used+=j.cpn;n.gused+=j.gpus;n.jobs.push(j.id)}}) } });
+motd(); if(restored)print('(Your earlier practice session was restored. Use "Reset practice" to start fresh.)','dimc');
+renderPrompt(); renderGuide(); renderCheat(); renderSide();
+setInterval(tick,500); tick();
+cmdEl.focus();
+})();
+</script>
+</body>
+</html>
