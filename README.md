@@ -25,3 +25,7 @@ One second on the page counts as one minute of cluster time. Progress is saved i
 ## Caveat
 
 Partition names, limits and software versions are invented. Check your real cluster's user guide (including whether it uses Slurm or PBS) before your first real job.
+
+## Citing
+
+This project is archived on Zenodo. See `CITATION.cff` (or GitHub's "Cite this repository" button) for the citation. MIT licensed, see `LICENSE`.

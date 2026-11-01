@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "Practice cluster: a browser-based Slurm HPC simulator with a 7-lesson guide"
+abstract: >-
+  A safe, simulated Slurm supercomputer that runs in a web browser, with a
+  7-lesson guide for learning HPC basics (files, modules, sinfo/squeue, sbatch,
+  a Foldseek job, fixing a failed job, scancel/srun) before using a real
+  cluster. Partition names, limits and software versions are invented and do
+  not describe any real system.
+authors:
+  - family-names: Changal
+    given-names: Mudasir Habib
+    affiliation: King Abdulaziz University
+    orcid: "https://orcid.org/0009-0000-5243-7747"
+version: 1.0.0
+date-released: "2026-11-01"
+license: MIT
+repository-code: "https://github.com/Mudddy352352/hpc-practice-cluster"
+url: "https://mudddy352352.github.io/hpc-practice-cluster/"
+keywords:
+  - high-performance computing
+  - HPC
+  - Slurm
+  - simulator
+  - training
+  - bioinformatics

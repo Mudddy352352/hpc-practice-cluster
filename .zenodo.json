@@ -1,0 +1,33 @@
+{
+  "title": "Practice cluster: a browser-based Slurm HPC simulator with a 7-lesson guide",
+  "upload_type": "software",
+  "description": "<p>A safe, simulated Slurm supercomputer that runs entirely in a web browser, built for learning to use a university HPC cluster before touching real hardware. It includes a terminal logged in to a fake login node, a 7-lesson guide (files, environment modules, checking the cluster with sinfo/squeue, a first sbatch job, a Foldseek search job, fixing a failed job, and scancel/srun), a live cluster view, and a cheat sheet.</p><p><strong>Note:</strong> the cluster is simulated. Partition names, resource limits, node layout and software versions are invented for teaching and do not describe any real system. Check your own cluster's user guide (including whether it uses Slurm or PBS) before submitting real jobs.</p>",
+  "creators": [
+    {
+      "name": "Changal, Mudasir Habib",
+      "affiliation": "King Abdulaziz University",
+      "orcid": "0009-0000-5243-7747"
+    }
+  ],
+  "license": "MIT",
+  "keywords": [
+    "high-performance computing",
+    "HPC",
+    "Slurm",
+    "job scheduler",
+    "simulator",
+    "training",
+    "bioinformatics",
+    "Foldseek",
+    "education"
+  ],
+  "language": "eng",
+  "version": "1.0.0",
+  "related_identifiers": [
+    {
+      "identifier": "https://mudddy352352.github.io/hpc-practice-cluster/",
+      "relation": "isDocumentedBy",
+      "resource_type": "software"
+    }
+  ]
+}
